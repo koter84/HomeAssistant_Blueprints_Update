@@ -72,7 +72,7 @@ eval set -- "$options"
 while true
 do
 	case "$1" in
-		-h|--help) 
+		-h|--help)
 			echo "for help, look at the source..."
 			exit 0
 			;;
@@ -122,29 +122,32 @@ then
 fi
 
 # check for self-updates
-wget -q -O "${_tempfile}" "${self_source_url}"
-wget_result=$?
-if [ "${wget_result}" != "0" ]
+if [ "${_file}" == "" ] || [ "${_file}" == "self" ]
 then
-	_blueprint_update_info "! something went wrong while downloading, exiting..."
-	_blueprint_update_info
-	exit
-fi
-self_diff=$(diff "${self_file}" "${_tempfile}")
-if [ "${self_diff}" == "" ]
-then
-	_blueprint_update_info "-> self up-2-date"
-else
-	if [ "${_do_update}" == "true" ]
+	wget -q -O "${_tempfile}" "${self_source_url}"
+	wget_result=$?
+	if [ "${wget_result}" != "0" ]
 	then
-		cp "${_tempfile}" "${self_file}"
-		chmod +x "${self_file}"
-		_blueprint_update_info "-! self updated!"
-	else
-		_blueprint_update_info "-! self changed!"
+		_blueprint_update_info "! something went wrong while downloading, exiting..."
+		_blueprint_update_info
+		exit
 	fi
+	self_diff=$(diff "${self_file}" "${_tempfile}")
+	if [ "${self_diff}" == "" ]
+	then
+		_blueprint_update_info "-> self up-2-date"
+	else
+		if [ "${_do_update}" == "true" ]
+		then
+			cp "${_tempfile}" "${self_file}"
+			chmod +x "${self_file}"
+			_blueprint_update_info "-! self updated!"
+		else
+			_blueprint_update_info "-! self changed!"
+		fi
+	fi
+	_blueprint_update_info
 fi
-_blueprint_update_info
 
 # find the blueprints dir
 if [ -d /config/blueprints/ ]

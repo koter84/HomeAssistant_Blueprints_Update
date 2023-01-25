@@ -52,6 +52,6 @@ if you fill in the server and [token](https://developers.home-assistant.io/docs/
 
 when you enable the auto_update setting you get a persistent notification that it was updated which won't get dismissed automatically.
 
-to actually update the blueprints, run `./blueprints_update.sh --update`
+to actually update the blueprints, run `./blueprints_update.sh --update` and add `--file` with the file-path to update just a single blueprint, use `--file self` to update just the script.
 
 for more verbose logging, use `--debug`
