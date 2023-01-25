@@ -213,9 +213,14 @@ do
 	if [ "$(echo "${blueprint_source_url}" | grep 'https://community.home-assistant.io/')" != "" ]
 	then
 		_blueprint_update_debug "-! home assistant community blueprint exchange"
-		# add .json and then extract the code block from the json...
-		blueprint_source_url+=".json"
-		_blueprint_update_debug "-> fixed source_url: ${blueprint_source_url}"
+
+		# check if the url ends in .json		
+		if [ "$(echo "${blueprint_source_url}" | grep '\.json$')" == "" ]
+		then
+			# add .json to the url
+			blueprint_source_url+=".json"
+			_blueprint_update_debug "-> fixed source_url: ${blueprint_source_url}"
+		fi
 
 		_blueprint_update_debug "-> download blueprint"
 		wget -q -O "${_tempfile}" "${blueprint_source_url}"
