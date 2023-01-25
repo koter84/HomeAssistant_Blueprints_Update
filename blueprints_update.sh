@@ -1,38 +1,11 @@
 #!/bin/bash
 
 self_file="$0"
-self_source_url="https://gist.githubusercontent.com/koter84/86790850aa63354bda56d041de31dc70/raw/blueprints_update.sh"
+self_source_url="https://raw.githubusercontent.com/koter84/HomeAssistant_Blueprints_Update/main/blueprints_update.sh"
 
 # defaults
 _do_update="false"
 _debug="false"
-
-# create a temp file for downloading
-_tempfile=$(mktemp -t blueprints_update.XXXXXX)
-
-# set options
-options=$(getopt -a -l "help,debug,update" -o "hdu" -- "$@")
-eval set -- "$options"
-while true
-do
-	case "$1" in
-		-h|--help) 
-			echo "for help, look at the source..."
-			exit 0
-			;;
-		-d|--debug)
-			_debug="true"
-			;;
-		-u|--update)
-			_do_update="true"
-			;;
-		--)
-			shift
-			break;;
-	esac
-	shift
-	sleep 1
-done
 
 # print debug function
 function _blueprint_update_debug
@@ -49,8 +22,106 @@ function _blueprint_update_info
 	echo "$@"
 }
 
-# check for self-updates
+# create a persistant notification
+function _persistent_notification_available
+{
+	local notification_file="$1"
+	local notification_extra_id="$2"
+
+	if [ "${_blueprints_update_notify}" == "true" ]
+	then
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'", "title": "Blueprints Update", "message": "Update available for '${notification_file}'\n\nupdate command:\n'$0' --update --file '${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+	else
+		_blueprint_update_info "notifications not enabled"
+	fi
+}
+
+function _persistent_notification_updated
+{
+	local notification_file="$1"
+	local notification_extra_id="$2"
+
+	if [ "${_blueprints_update_notify}" == "true" ]
+	then
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'", "title": "Blueprints Update", "message": "Updated '${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+	else
+		_blueprint_update_info "notifications not enabled"
+	fi
+}
+
+# dismiss a persistant notification
+function _persistent_notification_dismiss
+{
+	local notification_file="$1"
+	local notification_extra_id="$2"
+
+	if [ "${_blueprints_update_notify}" == "true" ]
+	then
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
+	else
+		_blueprint_update_info "notifications not enabled"
+	fi
+}
+
+# create a temp file for downloading
+_tempfile=$(mktemp -t blueprints_update.XXXXXX)
+
+# set options
+options=$(getopt -a -l "help,debug,file:,update" -o "hdf:u" -- "$@")
+eval set -- "$options"
+while true
+do
+	case "$1" in
+		-h|--help) 
+			echo "for help, look at the source..."
+			exit 0
+			;;
+		-d|--debug)
+			_debug="true"
+			;;
+		-f|--file)
+			shift
+			_file="$1"
+			;;
+		-u|--update)
+			_do_update="true"
+			;;
+		--)
+			shift
+			break;;
+	esac
+	shift
+	sleep 1
+done
+
+# start message
 _blueprint_update_info "> ${self_file}"
+
+# get config
+if [ -f ${self_file}."conf" ]
+then
+	_blueprint_update_debug "-! load config [${self_file}.conf]"
+	. ${self_file}."conf"
+
+	_blueprints_update_notify="true"
+	if [ "${_blueprints_update_server}" == "" ]
+	then
+		_blueprint_update_info "config file found, but _blueprints_update_server is not set"
+		_blueprints_update_notify="false"
+	fi
+	if [ "${_blueprints_update_token}" == "" ]
+	then
+		_blueprint_update_info "config file found, but _blueprints_update_token is not set"
+		_blueprints_update_notify="false"
+	fi
+
+	if [ "${_blueprints_update_auto_update,,}" == "true" ]
+	then
+		_do_update="true"
+	fi
+fi
+
+# check for self-updates
 wget -q -O "${_tempfile}" "${self_source_url}"
 wget_result=$?
 if [ "${wget_result}" != "0" ]
@@ -75,14 +146,34 @@ else
 fi
 _blueprint_update_info
 
+# find the blueprints dir
+if [ -d /config/blueprints/ ]
+then
+	cd /config/blueprints/
+elif [ -d $(dirname "$0")/../config/blueprints/ ]
+then
+	cd $(dirname "$0")/../config/blueprints/
+else
+	_blueprint_update_info "-! no blueprints dir found"
+	exit 1
+fi
+
 # check for blueprints updates
-cd /config/blueprints/
 find . -type f -name "*.yaml" -print0 | while read -d $'\0' file
 do
+	# single file...
+	if [ "${_file}" != "" ]
+	then
+		if [ "${_file}" != "${file}" ]
+		then
+			continue
+		fi
+	fi
+
 	_blueprint_update_info "> ${file}"
 
 	# get source url from file
-	blueprint_source_url=$(grep source_url "${file}" | sed s/' *source_url: '//)
+	blueprint_source_url=$(grep source_url "${file}" | sed -e s/' *source_url: '// -e s/'"'//g -e s/"'"//g)
 	_blueprint_update_debug "-> source_url: ${blueprint_source_url}"
 
 	# check for a value in source_url
@@ -91,15 +182,6 @@ do
 		_blueprint_update_info "-! no source_url in file"
 		_blueprint_update_info
 		continue
-	fi
-
-	# check for custom source_url (the source_url doesn't exist in the source file)
-	custom_source_url=""
-	if [ "$(echo "${blueprint_source_url}" | grep '^custom-')" != "" ]
-	then
-		_blueprint_update_debug "-! remove custom- from source_url"
-		sed -i s/'source_url: custom-'/'source_url: '/ "${file}"
-		blueprint_source_url="$(echo "${blueprint_source_url}" | sed s/'^custom-'//)"
 	fi
 
 	# fix source if it's regular github
@@ -114,6 +196,15 @@ do
 	if [ "$(echo "${blueprint_source_url}" | grep 'https://gist.github.com/')" != "" ]
 	then
 		_blueprint_update_debug "-! fix github gist url to raw"
+
+		# check for #filename in url
+		if [ "$(echo "${blueprint_source_url}" | grep '#')" != "" ]
+		then
+			_blueprint_update_debug "-> remove #filename from the end of the url"
+			blueprint_source_url="$(echo "${blueprint_source_url}" | sed s/'#.*'//)"
+			_blueprint_update_debug "-> fixed source_url: ${blueprint_source_url}"
+		fi
+
 		blueprint_source_url=$(echo "${blueprint_source_url}" | sed -e s/'https:\/\/gist.github.com\/'/'https:\/\/gist.githubusercontent.com\/'/ -e s/"\$"/"\/raw\/$(basename "${file}")"/)
 		_blueprint_update_debug "-> fixed source_url: ${blueprint_source_url}"
 	fi
@@ -147,7 +238,7 @@ do
 			_blueprint_update_debug "-> saving the blueprint in the temp file"
 			echo -e "${code}" > "${_tempfile}"
 
-			cat "${_tempfile}"
+			#cat "${_tempfile}"
 		elif [ "$(cat "${_tempfile}" | jq -r '.post_stream.posts[0].cooked' | grep '<code class=\"lang-auto\">')" != "" ]
 		then
 			_blueprint_update_debug "-> found a lang-auto code-block"
@@ -158,7 +249,7 @@ do
 			_blueprint_update_debug "-> saving the blueprint in the temp file"
 			echo -e "${code}" > "${_tempfile}"
 
-			cat "${_tempfile}"
+			#cat "${_tempfile}"
 		else
 			_blueprint_update_info "-! couldn't find a lang-yaml or lang-auto code-block, skipping..."
 			_blueprint_update_info
@@ -190,7 +281,7 @@ do
 	if [ "${new_blueprint_source_url}" == "" ]
 	then
 		_blueprint_update_debug "-! re-insert source_url"
-		sed -i "s;blueprint:;blueprint:\n  source_url: ${custom_source_url};" "${_tempfile}"
+		sed -i "s;blueprint:;blueprint:\n  source_url: '${blueprint_source_url}';" "${_tempfile}"
 	fi
 
 	_blueprint_update_debug "-> compare blueprints"
@@ -198,14 +289,27 @@ do
 	if [ "${blueprint_diff}" == "" ]
 	then
 		_blueprint_update_info "-> blueprint up-2-date"
+		_persistent_notification_dismiss "${file}"
 	else
 		if [ "${_do_update}" == "true" ]
 		then
 			cp "${_tempfile}" "${file}"
 			need_reload="1"
 			_blueprint_update_info "-! blueprint updated!"
+			if [ "${_blueprints_update_auto_update,,}" == "true" ]
+			then
+				_persistent_notification_updated "${file}" "no-auto-dismiss"
+			else
+				_persistent_notification_updated "${file}"
+			fi
 		else
 			_blueprint_update_info "-! blueprint changed!"
+			_persistent_notification_available "${file}"
+			if [ "${_debug}" == "true" ]
+			then
+				_blueprint_update_debug "-! diff:"
+				diff "${file}" "${_tempfile}"
+			fi
 		fi
 	fi
 
