@@ -285,7 +285,7 @@ do
 	fi
 
 	# check for source_url in the new source file
-	new_blueprint_source_url=$(grep source_url "${_tempfile}" | sed s/' *source_url: '//)
+	new_blueprint_source_url=$(grep source_url "${_tempfile}" | sed -e s/' *source_url: '// -e s/'"'//g -e s/"'"//g)
 	if [ "${new_blueprint_source_url}" == "" ]
 	then
 		_blueprint_update_debug "-! re-insert source_url"
