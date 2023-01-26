@@ -23,27 +23,14 @@ function _blueprint_update_info
 }
 
 # create a persistant notification
-function _persistent_notification_available
+function _persistent_notification_create
 {
-	local notification_file="$1"
-	local notification_extra_id="$2"
+	local notification_id="$1"
+	local notification_message="$2"
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'", "title": "Blueprints Update", "message": "Update available for '${notification_file}'\n\nupdate command:\n'$0' --update --file '${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
-	else
-		_blueprint_update_info "notifications not enabled"
-	fi
-}
-
-function _persistent_notification_updated
-{
-	local notification_file="$1"
-	local notification_extra_id="$2"
-
-	if [ "${_blueprints_update_notify}" == "true" ]
-	then
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'", "title": "Blueprints Update", "message": "Updated '${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"blueprints_update:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -52,12 +39,11 @@ function _persistent_notification_updated
 # dismiss a persistant notification
 function _persistent_notification_dismiss
 {
-	local notification_file="$1"
-	local notification_extra_id="$2"
+	local notification_id="$1"
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d '{ "notification_id": "blueprints_update:'${notification_extra_id}':'${notification_file}'" }' "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"blueprints_update:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -124,6 +110,7 @@ fi
 # check for self-updates
 if [ "${_file}" == "" ] || [ "${_file}" == "self" ]
 then
+	file="self"
 	wget -q -O "${_tempfile}" "${self_source_url}"
 	wget_result=$?
 	if [ "${wget_result}" != "0" ]
@@ -136,14 +123,23 @@ then
 	if [ "${self_diff}" == "" ]
 	then
 		_blueprint_update_info "-> self up-2-date"
+		_persistent_notification_dismiss "${file}"
 	else
 		if [ "${_do_update}" == "true" ]
 		then
 			cp "${_tempfile}" "${self_file}"
 			chmod +x "${self_file}"
 			_blueprint_update_info "-! self updated!"
+			if [ "${_blueprints_update_auto_update,,}" == "true" ]
+			then
+				_persistent_notification_create "${file}:no-auto-dismiss" "Updated ${file}"
+			else
+				_persistent_notification_create "${file}" "Updated ${file}"
+			fi
+			exit
 		else
 			_blueprint_update_info "-! self changed!"
+			_persistent_notification_create "${file}" "Update available for ${file}\n\nupdate command:\n$0 --update --file ${file}"
 		fi
 	fi
 	_blueprint_update_info
@@ -306,13 +302,13 @@ do
 			_blueprint_update_info "-! blueprint updated!"
 			if [ "${_blueprints_update_auto_update,,}" == "true" ]
 			then
-				_persistent_notification_updated "${file}" "no-auto-dismiss"
+				_persistent_notification_create "${file}:no-auto-dismiss" "Updated ${file}"
 			else
-				_persistent_notification_updated "${file}"
+				_persistent_notification_create "${file}" "Updated ${file}"
 			fi
 		else
 			_blueprint_update_info "-! blueprint changed!"
-			_persistent_notification_available "${file}"
+			_persistent_notification_create "${file}" "Update available for ${file}\n\nupdate command:\n$0 --update --file ${file}"
 			if [ "${_debug}" == "true" ]
 			then
 				_blueprint_update_debug "-! diff:"
