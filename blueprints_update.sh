@@ -37,7 +37,7 @@ function _persistent_notification_create
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"blueprints_update:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -50,7 +50,7 @@ function _persistent_notification_dismiss
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"blueprints_update:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
+		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -130,7 +130,7 @@ then
 	if [ "${self_diff}" == "" ]
 	then
 		_blueprint_update_info "-> self up-2-date"
-		_persistent_notification_dismiss "${file}"
+		_persistent_notification_dismiss "$(basename ${file})"
 	else
 		if [ "${_do_update}" == "true" ]
 		then
@@ -139,14 +139,14 @@ then
 			_blueprint_update_info "-! self updated!"
 			if [ "${_blueprints_update_auto_update,,}" == "true" ]
 			then
-				_persistent_notification_create "${file}:no-auto-dismiss" "Updated ${file}"
+				_persistent_notification_create "no-dismiss:$(basename ${file})" "Updated $(basename ${file})"
 			else
-				_persistent_notification_create "${file}" "Updated ${file}"
+				_persistent_notification_create "$(basename ${file})" "Updated $(basename ${file})"
 			fi
 			exit
 		else
 			_blueprint_update_info "-! self changed!"
-			_persistent_notification_create "${file}" "Update available for ${file}\n\nupdate command:\n$0 --update --file ${file}"
+			_persistent_notification_create "$(basename ${file})" "Update available for $(basename ${file})\n\nupdate command:\n$0 --update --file '${file}'"
 		fi
 	fi
 	_blueprint_update_info
@@ -309,13 +309,13 @@ do
 			_blueprint_update_info "-! blueprint updated!"
 			if [ "${_blueprints_update_auto_update,,}" == "true" ]
 			then
-				_persistent_notification_create "${file}:no-auto-dismiss" "Updated ${file}"
+				_persistent_notification_create "no-dismiss:$(basename ${file})" "Updated $(basename ${file})"
 			else
-				_persistent_notification_create "${file}" "Updated ${file}"
+				_persistent_notification_create "$(basename ${file})" "Updated $(basename ${file})"
 			fi
 		else
 			_blueprint_update_info "-! blueprint changed!"
-			_persistent_notification_create "${file}" "Update available for ${file}\n\nupdate command:\n$0 --update --file ${file}"
+			_persistent_notification_create "$(basename ${file})" "Update available for $(basename ${file})\n\nupdate command:\n$0 --update --file '${file}'"
 			if [ "${_debug}" == "true" ]
 			then
 				_blueprint_update_debug "-! diff:"
