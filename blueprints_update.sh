@@ -56,8 +56,16 @@ function _persistent_notification_dismiss
 	fi
 }
 
-# create a temp file for downloading
+# create a temp file for downloading, and clean-up on exit
 _tempfile=$(mktemp -t blueprints_update.XXXXXX)
+function clean_tempfile
+{
+	if [ -f "${_tempfile}" ]
+	then
+		rm "${_tempfile}"
+	fi
+}
+trap clean_tempfile EXIT
 
 # set options
 options=$(getopt -a -l "help,debug,file:,update" -o "hdf:u" -- "$@")
