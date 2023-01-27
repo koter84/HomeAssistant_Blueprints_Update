@@ -2,11 +2,12 @@ Home Assistant Blueprints Updater
 =================================
 
 This is a script to automatically check for updates for your HA Blueprints.
-When an update is found it can also automatically be updated.
 
-This is very much a work in progress, it works, but you need to run it manually from the command line.
+This is very much a work in progress.
 More info on the [Home Assistant Community forum post](https://community.home-assistant.io/t/allow-blueprint-upgrades/366939)
 
+At the moment it can create persistent notifications when an update is available, update a single blueprint or update all blueprints at once. It's also possible to auto-update the blueprints when a new version is available.
+Unfortunately it is not possible (yet) to react to the notification to easily update just a single blueprint when an update is available.
 
 Installation
 ------------
@@ -19,27 +20,73 @@ wget -O blueprints_update.sh https://raw.githubusercontent.com/koter84/HomeAssis
 chmod +x blueprints_update.sh
 ```
 
-to enable notifications in home-assistant create and edit `blueprints_update.sh.conf`
+to enable notifications in home-assistant create and edit `blueprints_update.sh.conf` (in the same directory as the script)
 ```bash
 _blueprints_update_server="http://localhost:8123"
-_blueprints_update_token="---paste-long-lived-access-token---"
+_blueprints_update_token="---paste-long-lived-access-token-here---"
 _blueprints_update_auto_update="false"
 ```
 
 edit the `configuration.yaml` and add
 ```yaml
 shell_command:
-  blueprints_update: /config/scripts/blueprints_update.sh
+  blueprints_update: /config/scripts/blueprints_update.sh {{ arguments }}
 ```
 
-create an automation to run the script
+create an automation to run the script, this will run the script every day at 03:00
 ```yaml
-alias: _Blueprints Update
+alias: _Blueprints Update - Check
+description: ""
+trigger:
+  - platform: time_pattern
+    hours: "3"
+condition: []
+action:
+  - service: shell_command.blueprints_update
+    data_template:
+      arguments: ""
+mode: single
+```
+
+optionally you can also create automations that call the script with certain arguments, which makes it possible to update blueprints from the front-end without the need for terminal/ssh access.
+```yaml
+alias: _Blueprints Update - Update All
 description: ""
 condition: []
 action:
   - service: shell_command.blueprints_update
-    data: {}
+    data_template:
+      arguments: "--update"
+mode: single
+
+alias: _Blueprints Update - Update Self
+description: ""
+condition: []
+action:
+  - service: shell_command.blueprints_update
+    data_template:
+      arguments: "--update --file 'self'"
+mode: single
+
+alias: _Blueprints Update - Update Specific Blueprint
+description: ""
+condition: []
+action:
+  - service: shell_command.blueprints_update
+    data_template:
+      arguments: "--update --file './automation/example/example.yaml'"
+mode: single
+
+alias: _Blueprints Update - Update Multiple Blueprints
+description: ""
+condition: []
+action:
+  - service: shell_command.blueprints_update
+    data_template:
+      arguments: "--update --file './automation/example/test-1.yaml'"
+  - service: shell_command.blueprints_update
+    data_template:
+      arguments: "--update --file './script/example/test-2.yaml'"
 mode: single
 ```
 
@@ -52,6 +99,6 @@ if you fill in the server and [token](https://developers.home-assistant.io/docs/
 
 when you enable the auto_update setting you get a persistent notification that it was updated which won't get dismissed automatically.
 
-to actually update the blueprints, run `./blueprints_update.sh --update` and add `--file` with the file-path to update just a single blueprint, use `--file self` to update just the script.
+to actually update the blueprints, run `./blueprints_update.sh --update` and add `--file` with the file-path to update just a single blueprint, use `--file self` to update just the script. The full commands are also in the notification, for easy copy-pasting.
 
 for more verbose logging, use `--debug`
