@@ -22,6 +22,13 @@ function _blueprint_update_info
 	echo "$@"
 }
 
+# fix url encodings
+function _fix_url
+{
+	echo "$1" | sed \
+		-e s/' '/'%20'/g
+}
+
 # create a persistant notification
 function _persistent_notification_create
 {
@@ -111,9 +118,9 @@ fi
 if [ "${_file}" == "" ] || [ "${_file}" == "self" ]
 then
 	file="self"
-	wget -q -O "${_tempfile}" "${self_source_url}"
-	wget_result=$?
-	if [ "${wget_result}" != "0" ]
+	curl -s -o "${_tempfile}" "$(_fix_url "${self_source_url}")"
+	curl_result=$?
+	if [ "${curl_result}" != "0" ]
 	then
 		_blueprint_update_info "! something went wrong while downloading, exiting..."
 		_blueprint_update_info
@@ -222,9 +229,9 @@ do
 		fi
 
 		_blueprint_update_debug "-> download blueprint"
-		wget -q -O "${_tempfile}" "${blueprint_source_url}"
-		wget_result=$?
-		if [ "${wget_result}" != "0" ]
+		curl -s -o "${_tempfile}" "$(_fix_url "${blueprint_source_url}")"
+		curl_result=$?
+		if [ "${curl_result}" != "0" ]
 		then
 			_blueprint_update_info "-! something went wrong while downloading, exiting..."
 			_blueprint_update_info
@@ -270,9 +277,9 @@ do
 		fi
 
 		_blueprint_update_debug "-> download blueprint"
-		wget -q -O "${_tempfile}" "${blueprint_source_url}"
-		wget_result=$?
-		if [ "${wget_result}" != "0" ]
+		curl -s -o "${_tempfile}" "$(_fix_url "${blueprint_source_url}")"
+		curl_result=$?
+		if [ "${curl_result}" != "0" ]
 		then
 			_blueprint_update_info "-! something went wrong while downloading, exiting..."
 			_blueprint_update_info
