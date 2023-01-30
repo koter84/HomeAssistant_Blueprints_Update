@@ -12,21 +12,73 @@ function _blueprint_update_debug
 {
 	if [ "${_debug}" == "true" ]
 	then
-		echo "$@"
+		_blueprint_update_info "$@"
 	fi
 }
 
 # print info function
 function _blueprint_update_info
 {
-	echo "$@"
+	if [ "${_debug}" == "true" ]
+	then
+		echo "$(date +"%Y-%m-%d %H:%M:%S") | $@"
+	else
+		echo "$@"
+	fi
+}
+
+# print newline
+function _blueprint_update_newline
+{
+	echo ""
 }
 
 # fix url encodings
 function _fix_url
 {
 	echo "$1" | sed \
-		-e s/' '/'%20'/g
+		-e 's/%/%25/g' \
+		-e 's/ /%20/g' \
+		-e 's/!/%21/g' \
+		-e 's/"/%22/g' \
+		-e "s/'/%27/g" \
+		-e 's/#/%23/g' \
+		-e 's/(/%28/g' \
+		-e 's/)/%29/g' \
+		-e 's/+/%2b/g' \
+		-e 's/,/%2c/g' \
+		-e 's/;/%3b/g' \
+		-e 's/?/%3f/g' \
+		-e 's/@/%40/g' \
+		-e 's/\$/%24/g' \
+		-e 's/\&/%26/g' \
+		-e 's/\*/%2a/g' \
+		-e 's/\[/%5b/g' \
+		-e 's/\\/%5c/g' \
+		-e 's/\]/%5d/g' \
+		-e 's/\^/%5e/g' \
+		-e 's/`/%60/g' \
+		-e 's/{/%7b/g' \
+		-e 's/|/%7c/g' \
+		-e 's/}/%7d/g' \
+		-e 's/~/%7e/g'
+}
+
+# download a file
+function _file_download
+{
+	local file="$1"
+	local source_url="$2"
+
+	_blueprint_update_debug "-> download blueprint"
+	curl -s -o "${file}" "$(_fix_url "${source_url}")"
+	curl_result=$?
+	if [ "${curl_result}" != "0" ]
+	then
+		_blueprint_update_info "! something went wrong while downloading, exiting..."
+		_blueprint_update_newline
+		exit
+	fi
 }
 
 # create a persistant notification
@@ -37,6 +89,7 @@ function _persistent_notification_create
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
+		_blueprint_update_debug "notification create: [${notification_id}] [${notification_message}]"
 		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
@@ -50,6 +103,7 @@ function _persistent_notification_dismiss
 
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
+		_blueprint_update_debug "notification dismiss: [${notification_id}]"
 		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
@@ -126,19 +180,12 @@ fi
 if [ "${_file}" == "" ] || [ "${_file}" == "self" ]
 then
 	file="self"
-	curl -s -o "${_tempfile}" "$(_fix_url "${self_source_url}")"
-	curl_result=$?
-	if [ "${curl_result}" != "0" ]
-	then
-		_blueprint_update_info "! something went wrong while downloading, exiting..."
-		_blueprint_update_info
-		exit
-	fi
+	_file_download "${_tempfile}" "${self_source_url}"
 	self_diff=$(diff "${self_file}" "${_tempfile}")
 	if [ "${self_diff}" == "" ]
 	then
 		_blueprint_update_info "-> self up-2-date"
-		_persistent_notification_dismiss "$(basename ${file})"
+		_persistent_notification_dismiss "$(basename "${file}")"
 	else
 		if [ "${_do_update}" == "true" ]
 		then
@@ -147,17 +194,17 @@ then
 			_blueprint_update_info "-! self updated!"
 			if [ "${_blueprints_update_auto_update,,}" == "true" ]
 			then
-				_persistent_notification_create "no-dismiss:$(basename ${file})" "Updated $(basename ${file})"
+				_persistent_notification_create "no-dismiss:$(basename "${file}")" "Updated $(basename "${file}")"
 			else
-				_persistent_notification_create "$(basename ${file})" "Updated $(basename ${file})"
+				_persistent_notification_create "$(basename "${file}")" "Updated $(basename "${file}")"
 			fi
 			exit
 		else
 			_blueprint_update_info "-! self changed!"
-			_persistent_notification_create "$(basename ${file})" "Update available for $(basename ${file})\n\nupdate command:\n$0 --update --file '${file}'"
+			_persistent_notification_create "$(basename "${file}")" "Update available for $(basename "${file}")\n\nupdate command:\n$0 --update --file '${file}'"
 		fi
 	fi
-	_blueprint_update_info
+	_blueprint_update_newline
 fi
 
 # find the blueprints dir
@@ -194,7 +241,7 @@ do
 	if [ "${blueprint_source_url}" == "" ]
 	then
 		_blueprint_update_info "-! no source_url in file"
-		_blueprint_update_info
+		_blueprint_update_newline
 		continue
 	fi
 
@@ -236,15 +283,8 @@ do
 			_blueprint_update_debug "-> fixed source_url: ${blueprint_source_url}"
 		fi
 
-		_blueprint_update_debug "-> download blueprint"
-		curl -s -o "${_tempfile}" "$(_fix_url "${blueprint_source_url}")"
-		curl_result=$?
-		if [ "${curl_result}" != "0" ]
-		then
-			_blueprint_update_info "-! something went wrong while downloading, exiting..."
-			_blueprint_update_info
-			exit
-		fi
+		# download the file
+		_file_download "${_tempfile}" "${blueprint_source_url}"
 
 		# find code block with lang-yaml or lang-auto
 		if [ "$(cat "${_tempfile}" | jq -r '.post_stream.posts[0].cooked' | grep '<code class=\"lang-yaml\">')" != "" ]
@@ -271,7 +311,7 @@ do
 			#cat "${_tempfile}"
 		else
 			_blueprint_update_info "-! couldn't find a lang-yaml or lang-auto code-block, skipping..."
-			_blueprint_update_info
+			_blueprint_update_newline
 			continue
 		fi
 	else
@@ -280,19 +320,12 @@ do
 		then
 			_blueprint_update_info "-! non-matching filename"
 			_blueprint_update_debug "-! [$(basename "${file}")] != [$(basename "${blueprint_source_url}")]"
-			_blueprint_update_info
+			_blueprint_update_newline
 			#continue
 		fi
 
-		_blueprint_update_debug "-> download blueprint"
-		curl -s -o "${_tempfile}" "$(_fix_url "${blueprint_source_url}")"
-		curl_result=$?
-		if [ "${curl_result}" != "0" ]
-		then
-			_blueprint_update_info "-! something went wrong while downloading, exiting..."
-			_blueprint_update_info
-			exit
-		fi
+		# download the file
+		_file_download "${_tempfile}" "${blueprint_source_url}"
 	fi
 
 	# check for source_url in the new source file
@@ -317,13 +350,13 @@ do
 			_blueprint_update_info "-! blueprint updated!"
 			if [ "${_blueprints_update_auto_update,,}" == "true" ]
 			then
-				_persistent_notification_create "no-dismiss:$(basename ${file})" "Updated $(basename ${file})"
+				_persistent_notification_create "no-dismiss:$(basename "${file}")" "Updated $(basename "${file}")"
 			else
-				_persistent_notification_create "$(basename ${file})" "Updated $(basename ${file})"
+				_persistent_notification_create "$(basename "${file}")" "Updated $(basename "${file}")"
 			fi
 		else
 			_blueprint_update_info "-! blueprint changed!"
-			_persistent_notification_create "$(basename ${file})" "Update available for $(basename ${file})\n\nupdate command:\n$0 --update --file '${file}'"
+			_persistent_notification_create "$(basename "${file}")" "Update available for $(basename "${file}")\n\nupdate command:\n$0 --update --file '${file}'"
 			if [ "${_debug}" == "true" ]
 			then
 				_blueprint_update_debug "-! diff:"
@@ -332,15 +365,10 @@ do
 		fi
 	fi
 
-	_blueprint_update_info
+	_blueprint_update_newline
 done
 
 if [ "${need_reload}" == "1" ]
 then
 	_blueprint_update_info "! there were updates, you should reload home assistant !"
-fi
-
-if [ -f "${_tempfile}" ]
-then
-	rm "${_tempfile}"
 fi
