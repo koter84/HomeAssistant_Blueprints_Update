@@ -49,6 +49,7 @@ mode: single
 ```
 
 optionally you can also create automations that call the script with certain arguments, which makes it possible to update blueprints from the front-end without the need for terminal/ssh access.
+( for this to work the shell_command needs to have the `{{ arguments }}` part at the end, as it shows in the `configuration.yaml` example above, but this has recently been added, so check your `configuration.yaml` for that )
 ```yaml
 alias: _Blueprints Update - Update All
 description: ""
