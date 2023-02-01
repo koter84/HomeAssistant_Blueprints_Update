@@ -234,7 +234,7 @@ do
 	_blueprint_update_info "> ${file}"
 
 	# get source url from file
-	blueprint_source_url=$(grep source_url "${file}" | sed -e s/' *source_url: '// -e s/'"'//g -e s/"'"//g)
+	blueprint_source_url=$(grep '^ *source_url: ' "${file}" | sed -e s/'^ *source_url: '// -e s/'"'//g -e s/"'"//g)
 	_blueprint_update_debug "-> source_url: ${blueprint_source_url}"
 
 	# check for a value in source_url
@@ -329,7 +329,7 @@ do
 	fi
 
 	# check for source_url in the new source file
-	new_blueprint_source_url=$(grep source_url "${_tempfile}" | sed -e s/' *source_url: '// -e s/'"'//g -e s/"'"//g)
+	new_blueprint_source_url=$(grep '^ *source_url: ' "${_tempfile}" | sed -e s/'^ *source_url: '// -e s/'"'//g -e s/"'"//g)
 	if [ "${new_blueprint_source_url}" == "" ]
 	then
 		_blueprint_update_debug "-! re-insert source_url"
