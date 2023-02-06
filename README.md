@@ -53,6 +53,7 @@ optionally you can also create automations that call the script with certain arg
 ```yaml
 alias: _Blueprints Update - Update All
 description: ""
+trigger: []
 condition: []
 action:
   - service: shell_command.blueprints_update
@@ -62,6 +63,7 @@ mode: single
 
 alias: _Blueprints Update - Update Self
 description: ""
+trigger: []
 condition: []
 action:
   - service: shell_command.blueprints_update
@@ -71,6 +73,7 @@ mode: single
 
 alias: _Blueprints Update - Update Specific Blueprint
 description: ""
+trigger: []
 condition: []
 action:
   - service: shell_command.blueprints_update
@@ -80,6 +83,7 @@ mode: single
 
 alias: _Blueprints Update - Update Multiple Blueprints
 description: ""
+trigger: []
 condition: []
 action:
   - service: shell_command.blueprints_update
