@@ -45,6 +45,13 @@ action:
   - service: shell_command.blueprints_update
     data_template:
       arguments: ""
+  - parallel:
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: automation.reload
+      data: {}
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: script.reload
+      data: {}
 mode: single
 ```
 
@@ -59,6 +66,11 @@ action:
   - service: shell_command.blueprints_update
     data_template:
       arguments: "--update"
+  - parallel:
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: automation.reload
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: script.reload
 mode: single
 
 alias: _Blueprints Update - Update Self
@@ -79,6 +91,11 @@ action:
   - service: shell_command.blueprints_update
     data_template:
       arguments: "--update --file './automation/example/example.yaml'"
+  - parallel:
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: automation.reload
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: script.reload
 mode: single
 
 alias: _Blueprints Update - Update Multiple Blueprints
@@ -92,6 +109,11 @@ action:
   - service: shell_command.blueprints_update
     data_template:
       arguments: "--update --file './script/example/test-2.yaml'"
+  - parallel:
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: automation.reload
+    - alias: Pull into HA new blueprint code if any were loaded
+      service: script.reload
 mode: single
 ```
 
