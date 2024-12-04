@@ -90,7 +90,7 @@ function _persistent_notification_create
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
 		_blueprint_update_debug "notification create: [${notification_id}] [${notification_message}]"
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+		curl ${_blueprints_update_curl_options} -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -104,7 +104,7 @@ function _persistent_notification_dismiss
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
 		_blueprint_update_debug "notification dismiss: [${notification_id}]"
-		curl --silent -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
+		curl ${_blueprints_update_curl_options} -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -168,6 +168,11 @@ then
 	then
 		_blueprint_update_info "config file found, but _blueprints_update_token is not set"
 		_blueprints_update_notify="false"
+	fi
+
+ 	if [ "${_blueprints_update_curl_options}" == "" ]
+	then
+		_blueprints_update_curl_options="--silent"
 	fi
 
 	if [ "${_blueprints_update_auto_update,,}" == "true" ]
