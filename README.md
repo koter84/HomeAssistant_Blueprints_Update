@@ -25,6 +25,7 @@ to enable notifications in home-assistant create and edit `blueprints_update.sh.
 _blueprints_update_server="http://localhost:8123"
 _blueprints_update_token="---paste-long-lived-access-token-here---"
 _blueprints_update_auto_update="false"
+_blueprints_update_curl_options="--silent"
 ```
 
 edit the `configuration.yaml` and add
