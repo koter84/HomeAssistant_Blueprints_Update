@@ -219,6 +219,9 @@ then
 elif [ -d $(dirname "$0")/../config/blueprints/ ]
 then
 	cd $(dirname "$0")/../config/blueprints/
+elif [ -d /usr/share/hassio/homeassistant/blueprints/ ]
+then
+	cd /usr/share/hassio/homeassistant/blueprints/
 else
 	_blueprint_update_info "-! no blueprints dir found"
 	exit 1
