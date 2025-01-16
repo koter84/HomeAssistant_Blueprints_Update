@@ -6,6 +6,7 @@ self_source_url="https://raw.githubusercontent.com/koter84/HomeAssistant_Bluepri
 # defaults
 _do_update="false"
 _debug="false"
+_check_blacklist="false"
 
 # print debug function
 function _blueprint_update_debug
@@ -31,6 +32,23 @@ function _blueprint_update_info
 function _blueprint_update_newline
 {
 	echo ""
+}
+
+function _blueprint_blacklist_check
+{
+	file_found=false
+	for element in "${_blueprints_update_blacklist[@]}"; do
+	  if [[ "$element" == "$@" ]]; then
+	    file_found=true
+	    break
+	  fi
+	done
+
+	if [[ "$file_found" == true ]]; then
+	  echo "true"
+	else
+	  echo "false"
+	fi
 }
 
 # fix url encodings
@@ -179,6 +197,12 @@ then
 	then
 		_do_update="true"
 	fi
+
+	if [ "${_blueprints_update_blacklist}" != "" ]; 
+	then
+		_blueprint_update_info "blacklist found, check blacklist is enabled"
+		_check_blacklist="true"
+	fi
 fi
 
 # check for self-updates
@@ -240,6 +264,17 @@ do
 	fi
 
 	_blueprint_update_info "> ${file}"
+
+	if [ _check_blacklist ]
+	then
+		file_found=$(_blueprint_blacklist_check "${file}")
+		if [ ${file_found} == "true" ]
+		then
+			_blueprint_update_info "-> blueprint found in blacklist skipping"
+			_blueprint_update_newline
+			continue
+		fi
+	fi
 
 	# get source url from file
 	blueprint_source_url=$(grep '^ *source_url: ' "${file}" | sed -e s/'^ *source_url: '// -e s/'"'//g -e s/"'"//g)
