@@ -1,5 +1,7 @@
 #!/bin/bash
 
+_version="1.0.0"
+
 self_file="$0"
 self_source_url="https://raw.githubusercontent.com/koter84/HomeAssistant_Blueprints_Update/main/blueprints_update.sh"
 
@@ -122,13 +124,17 @@ function clean_tempfile
 trap clean_tempfile EXIT
 
 # set options
-options=$(getopt -a -l "help,debug,file:,update" -o "hdf:u" -- "$@")
+options=$(getopt -a -l "help,version,debug,file:,update" -o "hdf:u" -- "$@")
 eval set -- "$options"
 while true
 do
 	case "$1" in
 		-h|--help)
 			echo "for help, look at the source..."
+			exit 0
+			;;
+		--version)
+			echo "Blueprints Update v${_version}"
 			exit 0
 			;;
 		-d|--debug)
@@ -342,6 +348,16 @@ do
 	then
 		_blueprint_update_debug "-! re-insert source_url"
 		sed -i "s;blueprint:;blueprint:\n  source_url: '${blueprint_source_url}';" "${_tempfile}"
+	fi
+
+	# check if the source_url has changed ?
+	if [ "${new_blueprint_source_url}" != "" ] && [ "${orig_blueprint_source_url}" != "${new_blueprint_source_url}" ]
+	then
+		_blueprint_update_info "-! source_url changed!"
+		_blueprint_update_info "old: ${orig_blueprint_source_url}"
+		_blueprint_update_info "new: ${new_blueprint_source_url}"
+
+		_persistent_notification_create "$(basename "${file}")" "Source_URL changed!")"
 	fi
 
 	_blueprint_update_debug "-> compare blueprints"
