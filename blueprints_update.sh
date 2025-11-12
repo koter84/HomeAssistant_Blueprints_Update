@@ -92,7 +92,7 @@ function _persistent_notification_create
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
 		_blueprint_update_debug "notification create: [${notification_id}] [${notification_message}]"
-		curl ${_blueprints_update_curl_options} -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
+		curl "${_blueprints_update_curl_options}" -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\", \"title\": \"Blueprints Update\", \"message\": \"${notification_message}\" }" "${_blueprints_update_server}/api/services/persistent_notification/create" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -106,7 +106,7 @@ function _persistent_notification_dismiss
 	if [ "${_blueprints_update_notify}" == "true" ]
 	then
 		_blueprint_update_debug "notification dismiss: [${notification_id}]"
-		curl ${_blueprints_update_curl_options} -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
+		curl "${_blueprints_update_curl_options}" -X POST -H "Authorization: Bearer ${_blueprints_update_token}" -H "Content-Type: application/json" -d "{ \"notification_id\": \"bu:${notification_id}\" }" "${_blueprints_update_server}/api/services/persistent_notification/dismiss" >/dev/null
 	else
 		_blueprint_update_info "notifications not enabled"
 	fi
@@ -159,10 +159,10 @@ done
 _blueprint_update_info "> ${self_file}"
 
 # get config
-if [ -f ${self_file}."conf" ]
+if [ -f "${self_file}.conf" ]
 then
 	_blueprint_update_debug "-! load config [${self_file}.conf]"
-	. ${self_file}."conf"
+	. "${self_file}.conf"
 
 	_blueprints_update_notify="true"
 	if [ "${_blueprints_update_server}" == "" ]
@@ -221,20 +221,20 @@ fi
 # find the blueprints dir
 if [ -d /config/blueprints/ ]
 then
-	cd /config/blueprints/
+	cd /config/blueprints/ || exit
 elif [ -d $(dirname "$0")/../config/blueprints/ ]
 then
-	cd $(dirname "$0")/../config/blueprints/
+	cd $(dirname "$0")/../config/blueprints/ || exit
 elif [ -d /usr/share/hassio/homeassistant/blueprints/ ]
 then
-	cd /usr/share/hassio/homeassistant/blueprints/
+	cd /usr/share/hassio/homeassistant/blueprints/ || exit
 else
 	_blueprint_update_info "-! no blueprints dir found"
 	exit 1
 fi
 
 # check for blueprints updates
-find . -type f -name "*.yaml" -print0 | while read -d $'\0' file
+find . -type f -name "*.yaml" -print0 | while read -rd $'\0' file
 do
 	# single file...
 	if [ "${_file}" != "" ]
@@ -301,23 +301,23 @@ do
 		_file_download "${_tempfile}" "${blueprint_source_url}"
 
 		# find code block with lang-yaml or lang-auto
-		if [ "$(cat "${_tempfile}" | jq -r '.post_stream.posts[0].cooked' | grep '<code class=\"lang-yaml\">')" != "" ]
+		if [ "$(jq -r '.post_stream.posts[0].cooked' "${_tempfile}" | grep '<code class=\"lang-yaml\">')" != "" ]
 		then
 			_blueprint_update_debug "-> found a lang-yaml code-block"
 
 			_blueprint_update_debug "-> extracting the blueprint"
-			code="$(cat "${_tempfile}" | jq '.post_stream.posts[0].cooked' | sed -e s/'.*<code class=\\\"lang-yaml\\\">'/''/ -e s/'<\/code>.*'/''/)"
+			code="$(jq '.post_stream.posts[0].cooked' "${_tempfile}" | sed -e s/'.*<code class=\\\"lang-yaml\\\">'/''/ -e s/'<\/code>.*'/''/)"
 
 			_blueprint_update_debug "-> saving the blueprint in the temp file"
 			echo -e "${code}" > "${_tempfile}"
 
 			#cat "${_tempfile}"
-		elif [ "$(cat "${_tempfile}" | jq -r '.post_stream.posts[0].cooked' | grep '<code class=\"lang-auto\">')" != "" ]
+		elif [ "$(jq -r '.post_stream.posts[0].cooked' "${_tempfile}" | grep '<code class=\"lang-auto\">')" != "" ]
 		then
 			_blueprint_update_debug "-> found a lang-auto code-block"
 
 			_blueprint_update_debug "-> extracting the blueprint"
-			code="$(cat "${_tempfile}" | jq '.post_stream.posts[0].cooked' | sed -e s/'.*<code class=\\\"lang-auto\\\">'/''/ -e s/'<\/code>.*'/''/)"
+			code="$(jq '.post_stream.posts[0].cooked' "${_tempfile}" | sed -e s/'.*<code class=\\\"lang-auto\\\">'/''/ -e s/'<\/code>.*'/''/)"
 
 			_blueprint_update_debug "-> saving the blueprint in the temp file"
 			echo -e "${code}" > "${_tempfile}"
@@ -357,7 +357,7 @@ do
 		_blueprint_update_info "old: ${orig_blueprint_source_url}"
 		_blueprint_update_info "new: ${new_blueprint_source_url}"
 
-		_persistent_notification_create "$(basename "${file}")" "Source_URL changed!")"
+		_persistent_notification_create "$(basename "${file}")" "Source_URL changed!"
 	fi
 
 	_blueprint_update_debug "-> compare blueprints"
