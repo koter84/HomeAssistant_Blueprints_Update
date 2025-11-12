@@ -1,6 +1,6 @@
 #!/bin/bash
 
-_version="1.0.1"
+_version="1.0.2"
 
 self_file="$0"
 self_source_url="https://raw.githubusercontent.com/koter84/HomeAssistant_Blueprints_Update/main/blueprints_update.sh"
@@ -40,16 +40,16 @@ function _blueprint_blacklist_check
 {
 	file_found=false
 	for element in "${_blueprints_update_blacklist[@]}"; do
-	  if [[ "$element" == "$@" ]]; then
-	    file_found=true
-	    break
-	  fi
+		if [[ "$element" == "$@" ]]; then
+			file_found=true
+			break
+		fi
 	done
 
 	if [[ "$file_found" == true ]]; then
-	  echo "true"
+		echo "true"
 	else
-	  echo "false"
+		echo "false"
 	fi
 }
 
@@ -243,15 +243,15 @@ then
 fi
 
 # find the blueprints dir
-if [ -d /config/blueprints/ ]
+if [ -d "/config/blueprints/" ]
 then
-	cd /config/blueprints/ || exit
-elif [ -d $(dirname "$0")/../config/blueprints/ ]
+	cd "/config/blueprints/" || exit
+elif [ -d "$(dirname "$0")/../config/blueprints/" ]
 then
-	cd $(dirname "$0")/../config/blueprints/ || exit
-elif [ -d /usr/share/hassio/homeassistant/blueprints/ ]
+	cd "$(dirname "$0")/../config/blueprints/" || exit
+elif [ -d "/usr/share/hassio/homeassistant/blueprints/" ]
 then
-	cd /usr/share/hassio/homeassistant/blueprints/ || exit
+	cd "/usr/share/hassio/homeassistant/blueprints/" || exit
 else
 	_blueprint_update_info "-! no blueprints dir found"
 	exit 1
@@ -271,10 +271,10 @@ do
 
 	_blueprint_update_info "> ${file}"
 
-	if [ _check_blacklist ]
+	if [ ${_check_blacklist} ]
 	then
 		file_found=$(_blueprint_blacklist_check "${file}")
-		if [ ${file_found} == "true" ]
+		if [ "${file_found}" == "true" ]
 		then
 			_blueprint_update_info "-> blueprint found in blacklist skipping"
 			_blueprint_update_newline
