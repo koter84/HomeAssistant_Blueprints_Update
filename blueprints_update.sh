@@ -324,7 +324,7 @@ do
 	then
 		_blueprint_update_debug "-! home assistant community blueprint exchange"
 
-		# check if the url ends in .json		
+		# check if the url ends in .json
 		if [ "$(echo "${blueprint_source_url}" | grep '\.json$')" == "" ]
 		then
 			# add .json to the url
@@ -386,6 +386,7 @@ do
 	fi
 
 	# check if the source_url has changed ?
+	orig_blueprint_source_url=$(grep '^ *source_url: ' "${file}" | sed -e 's/^ *source_url: *//' -e 's/^["'\'']//;s/["'\'']$//')
 	if [ "${new_blueprint_source_url}" != "" ] && [ "${orig_blueprint_source_url}" != "${new_blueprint_source_url}" ]
 	then
 		_blueprint_update_info "-! source_url changed!"
