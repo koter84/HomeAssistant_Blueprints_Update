@@ -1,6 +1,6 @@
 #!/bin/bash
 
-_version="1.0.2"
+_version="1.0.3"
 
 self_file="$0"
 self_source_url="https://raw.githubusercontent.com/koter84/HomeAssistant_Blueprints_Update/main/blueprints_update.sh"
