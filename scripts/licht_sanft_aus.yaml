@@ -6,6 +6,10 @@ blueprint:
     1 Sekunde Transition), dann retry.action zum sicheren Ausschalten.
     Optional können weitere Lichter ohne Rot-Übergang parallel ausgeschaltet werden
     (z.B. ein Wickeltisch oder eine zusätzliche Leuchte im Raum).
+
+    Version 1.1: Nachtlicht. Mit dem Skriptfeld keep_light_on: true bleibt das
+    Hauptlicht an (gedimmt, warmweiß, Werte aus optionalen input_number-Helfern,
+    sonst 10 % / 2000 K) statt auszugehen. Zusatzlichter gehen weiterhin aus.
   domain: script
   input:
     main_light:
@@ -26,7 +30,33 @@ blueprint:
           domain: light
           multiple: true
 
+    night_brightness_helper:
+      name: Nachtlicht-Helligkeit (input_number, optional)
+      description: >
+        input_number mit der Nachtlicht-Helligkeit in % (nur bei keep_light_on).
+        Leer lassen = 10 %.
+      default: ""
+      selector:
+        entity:
+          domain: input_number
+
+    night_color_temp_helper:
+      name: Nachtlicht-Farbtemperatur (input_number, optional)
+      description: >
+        input_number mit der Nachtlicht-Farbtemperatur in Kelvin (nur bei
+        keep_light_on). Leer lassen = 2000 K.
+      default: ""
+      selector:
+        entity:
+          domain: input_number
+
 sequence:
+  - alias: "Variablen setzen"
+    variables:
+      keep_light_on_parsed: "{{ keep_light_on if keep_light_on is defined else false }}"
+      _night_brightness_helper: !input night_brightness_helper
+      _night_color_temp_helper: !input night_color_temp_helper
+
   # Nur weitermachen wenn das Hauptlicht überhaupt an ist
   - alias: "Guard: Hauptlicht an?"
     condition: state
@@ -36,30 +66,47 @@ sequence:
   # Parallele Ausschalt-Sequenz: Hauptlicht mit Rot-Übergang, Zusatzlichter direkt
   - alias: "Parallel ausschalten"
     parallel:
-      # Hauptlicht: erst auf minimales Rot dimmen, dann sicher ausschalten
+      # Hauptlicht: Nachtlicht (keep_light_on) oder erst minimales Rot, dann aus
       - sequence:
-          - alias: "Hauptlicht auf minimales Rot dimmen"
-            action: light.turn_on
-            target:
-              entity_id: !input main_light
-            data:
-              rgb_color: [255, 0, 0]
-              transition: 1
-              brightness_pct: 1
+          - alias: "Nachtlicht oder ausschalten"
+            if:
+              - condition: template
+                value_template: "{{ keep_light_on_parsed | bool(false) }}"
+            then:
+              # Ohne expected_state, damit Helligkeit/Farbe auch bei schon
+              # eingeschaltetem Licht gesetzt werden.
+              - alias: "Hauptlicht als Nachtlicht setzen"
+                action: retry.action
+                target:
+                  entity_id: !input main_light
+                data:
+                  action: light.turn_on
+                  brightness_pct: "{{ states(_night_brightness_helper) | float(10) if _night_brightness_helper != '' else 10 }}"
+                  color_temp_kelvin: "{{ states(_night_color_temp_helper) | float(2000) | int if _night_color_temp_helper != '' else 2000 }}"
+                  transition: 60
+            else:
+              - alias: "Hauptlicht auf minimales Rot dimmen"
+                action: light.turn_on
+                target:
+                  entity_id: !input main_light
+                data:
+                  rgb_color: [255, 0, 0]
+                  transition: 1
+                  brightness_pct: 1
 
-          - alias: "1 Sekunde warten"
-            delay:
-              seconds: 1
+              - alias: "1 Sekunde warten"
+                delay:
+                  seconds: 1
 
-          - alias: "Hauptlicht mit Retry ausschalten"
-            action: retry.action
-            target:
-              entity_id: !input main_light
-            data:
-              action: light.turn_off
-              retries: 60
-              expected_state: "off"
-              state_grace: 1.1
+              - alias: "Hauptlicht mit Retry ausschalten"
+                action: retry.action
+                target:
+                  entity_id: !input main_light
+                data:
+                  action: light.turn_off
+                  retries: 60
+                  expected_state: "off"
+                  state_grace: 1.1
 
       # Zusatzlichter: direkt ausschalten (nur wenn Liste nicht leer)
       - sequence:
@@ -80,3 +127,11 @@ sequence:
 mode: single
 max_exceeded: silent
 icon: mdi:lightbulb-multiple-off-outline
+
+fields:
+  keep_light_on:
+    name: Licht an lassen
+    description: Hauptlicht als Nachtlicht gedimmt anlassen statt auszuschalten.
+    default: false
+    selector:
+      boolean:
