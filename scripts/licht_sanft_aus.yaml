@@ -1,5 +1,5 @@
 blueprint:
-  source_url: "https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/scripts/licht_sanft_aus.yaml"
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/scripts/licht_sanft_aus.yaml"
   name: Licht sanft aus
   description: >
     Schaltet ein Licht sanft aus: erst Übergang auf minimales Rot (1%, RGB 255/0/0,

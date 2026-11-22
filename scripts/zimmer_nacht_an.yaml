@@ -1,5 +1,5 @@
 blueprint:
-  source_url: "https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/scripts/zimmer_nacht_an.yaml"
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/scripts/zimmer_nacht_an.yaml"
   name: Zimmer Nacht an
   description: >
     Schaltet Zimmergeräte für den Nacht-Modus ein. Logik:

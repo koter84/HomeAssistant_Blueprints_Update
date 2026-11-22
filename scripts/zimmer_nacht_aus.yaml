@@ -1,5 +1,5 @@
 blueprint:
-  source_url: "https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/scripts/zimmer_nacht_aus.yaml"
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/scripts/zimmer_nacht_aus.yaml"
   name: Zimmer Nacht aus
   description: >
     Schaltet alle Geräte eines Zimmers nach dem Nacht-Modus aus.

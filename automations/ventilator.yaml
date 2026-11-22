@@ -1,5 +1,5 @@
 blueprint:
-  source_url: "https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/automations/ventilator.yaml"
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/automations/ventilator.yaml"
   name: Ventilatorregelung dynamisch
   description: >
     Diese Blaupause regelt einen Ventilator nach folgenden Regeln:

@@ -1,5 +1,5 @@
 blueprint:
-  source_url: "https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/automations/vacuum.yaml"
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/automations/vacuum.yaml"
   name: Staubsauger-Zeitplan mit Benachrichtigungssteuerung
   description: >
     🧹 **Staubsauger-Zeitplan mit Benachrichtigungssteuerung & Urlaubsmodus**

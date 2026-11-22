@@ -10,7 +10,7 @@
 #
 
 self_file="$0"
-self_source_url="https://raw.githubusercontent.com/tefracky-organization/homeassistant-blueprints/refs/heads/blueprints/blueprints_update.sh"
+self_source_url="https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/blueprints_update.sh"
 
 # defaults
 _do_update="false"
