@@ -1,0 +1,144 @@
+blueprint:
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/automations/baby-status.yaml"
+  name: Baby-Monitor Status
+  description: |
+    # 👶 Baby-Monitor: Status
+    **Version 1.0**
+
+    Pflegt einen `input_select` mit dem Status eines Babybetts/Stubenwagens (Optionen **Leer, Schläft, Wach, Weint, Aus**) und eine Textbeschreibung.
+
+    - **Weint:** sofort, sobald der Frigate-Audiosensor „Weinen“ auf `on` geht. Nur bei eingeschalteter Kamera und wenn der Status nicht „Leer“ ist.
+    - **Leer / Schläft / Wach:** geglätteter Status des KI-Dienstes (`sensor.<ort>_ki_status`). Bei jeder Prüfung wird die Beschreibung aktualisiert, der Status nur geändert, wenn gerade nicht geweint wird. 1 Minute nach Ende des Weinens wird der KI-Status wieder übernommen.
+    - **Aus:** Kamera-Schalter aus.
+
+    Die zugehörigen Benachrichtigungen kommen aus `tefracky/baby-benachrichtigungen.yaml`.
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    kamera_schalter:
+      name: Kamera-Schalter
+      selector:
+        entity:
+          domain: switch
+    weinen_sensor:
+      name: Weinen-Sensor (Frigate-Audio)
+      selector:
+        entity:
+          domain: binary_sensor
+    ki_status:
+      name: KI-Status (Leer/Schläft/Wach)
+      selector:
+        entity:
+          domain: sensor
+    ki_pruefung:
+      name: KI-Letzte-Prüfung
+      selector:
+        entity:
+          domain: sensor
+    status_select:
+      name: Status (input_select)
+      selector:
+        entity:
+          domain: input_select
+    beschreibung:
+      name: Beschreibung (input_text)
+      selector:
+        entity:
+          domain: input_text
+
+mode: queued
+max: 5
+max_exceeded: silent
+
+variables:
+  kamera_schalter: !input kamera_schalter
+  weinen_sensor: !input weinen_sensor
+  ki_status: !input ki_status
+  status_select: !input status_select
+
+triggers:
+  - trigger: state
+    entity_id: !input kamera_schalter
+    to: "off"
+    id: aus
+  - trigger: state
+    entity_id: !input weinen_sensor
+    to: "on"
+    id: weint
+  - trigger: state
+    entity_id: !input ki_pruefung
+    id: ki
+  - trigger: state
+    entity_id: !input weinen_sensor
+    to: "off"
+    for:
+      minutes: 1
+    id: ki
+
+conditions: []
+
+actions:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: aus
+        sequence:
+          - action: input_select.select_option
+            target:
+              entity_id: !input status_select
+            data:
+              option: "Aus"
+          - action: input_text.set_value
+            target:
+              entity_id: !input beschreibung
+            data:
+              value: "Kamera aus"
+      - conditions:
+          - condition: trigger
+            id: weint
+          - condition: state
+            entity_id: !input kamera_schalter
+            state: "on"
+          - condition: not
+            conditions:
+              - condition: state
+                entity_id: !input status_select
+                state:
+                  - "Leer"
+        sequence:
+          - action: input_select.select_option
+            target:
+              entity_id: !input status_select
+            data:
+              option: "Weint"
+      - conditions:
+          - condition: trigger
+            id: ki
+          - condition: state
+            entity_id: !input kamera_schalter
+            state: "on"
+          - condition: state
+            entity_id: !input ki_status
+            state:
+              - "Leer"
+              - "Schläft"
+              - "Wach"
+        sequence:
+          - action: input_text.set_value
+            target:
+              entity_id: !input beschreibung
+            data:
+              value: "{{ (state_attr(ki_status, 'beschreibung') or '')[:250] }}"
+          - if:
+              - condition: state
+                entity_id: !input weinen_sensor
+                state: "off"
+              - condition: template
+                value_template: "{{ states(status_select) != states(ki_status) }}"
+            then:
+              - action: input_select.select_option
+                target:
+                  entity_id: !input status_select
+                data:
+                  option: "{{ states(ki_status) }}"

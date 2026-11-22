@@ -1,0 +1,65 @@
+blueprint:
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/automations/baby-gesicht-bedeckt.yaml"
+  name: Baby-Monitor Gesicht bedeckt
+  description: |
+    # ⚠️ Baby-Monitor: Gesicht bedeckt
+    **Version 1.0**
+
+    Meldet, wenn der KI-Dienst zweimal hintereinander „Gesicht bedeckt“ erkennt (Attribut `gesicht_bedeckt_bestaetigt` am KI-Status-Sensor). Nur bei eingeschalteter Kamera. KI-Einschätzung, kann irren.
+
+    Versand über ein Benachrichtigungs-Script (Blueprint `tefracky/baby-benachrichtigen.yaml`).
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    ki_status:
+      name: KI-Status-Sensor
+      selector:
+        entity:
+          domain: sensor
+    kamera_schalter:
+      name: Kamera-Schalter
+      selector:
+        entity:
+          domain: switch
+    benachrichtigen_script:
+      name: Benachrichtigungs-Script
+      selector:
+        entity:
+          domain: script
+    anzeigename:
+      name: Anzeigename (z. B. Babybett)
+      selector:
+        text:
+    ton:
+      name: Alexa-Ton
+      default: amzn_sfx_scifi_alarm_04
+      selector:
+        text:
+
+mode: single
+
+variables:
+  ki_status: !input ki_status
+  benachrichtigen_script: !input benachrichtigen_script
+  anzeigename: !input anzeigename
+  ton: !input ton
+
+triggers:
+  - trigger: state
+    entity_id: !input ki_status
+    attribute: gesicht_bedeckt_bestaetigt
+    to: true
+
+conditions:
+  - condition: state
+    entity_id: !input kamera_schalter
+    state: "on"
+
+actions:
+  - action: "{{ benachrichtigen_script }}"
+    data:
+      titel: "⚠️ {{ anzeigename }}: Gesicht bedeckt?"
+      nachricht: "Die KI meint zweimal hintereinander: {{ state_attr(ki_status, 'beschreibung') }} Bitte nachsehen (KI-Einschätzung, kann irren)."
+      ton: "{{ ton }}"
+      prioritaet: true

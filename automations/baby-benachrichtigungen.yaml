@@ -1,0 +1,182 @@
+blueprint:
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/automations/baby-benachrichtigungen.yaml"
+  name: Baby-Monitor Benachrichtigungen
+  description: |
+    # 👶 Baby-Monitor: Benachrichtigungen
+    **Version 1.0**
+
+    Reagiert auf Statusänderungen des Status-`input_select` (siehe `tefracky/baby-status.yaml`):
+
+    - Zeitstempel „Status seit“ setzen.
+    - **Weint:** Push mit hoher Priorität + Alexa-Ton + Sprachansage.
+    - **Schläft → Wach:** Push + leiser Ton + Sprachansage.
+    - **Wieder ruhig** (Schläft/Leer/Aus, vorher Weint/Wach): Benachrichtigung löschen.
+    - Alle anderen Wechsel (außer von/nach „Aus“): leiser Debug-Text mit Tag `<Tag>_debug`. Zum Abschalten den Schritt „Statusänderung als leiser Text“ deaktivieren.
+
+    Versand über ein Benachrichtigungs-Script (Blueprint `tefracky/baby-benachrichtigen.yaml`) mit den Feldern titel, nachricht, ton, prioritaet, sprache.
+    Löschen über `script.notification_delete` (Blueprint `tefracky/notification-send.yaml`).
+  domain: automation
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    entitaeten:
+      name: Entitäten
+      icon: mdi:baby-face-outline
+      input:
+        status_select:
+          name: Status (input_select)
+          selector:
+            entity:
+              domain: input_select
+        status_seit:
+          name: Status seit (input_datetime)
+          selector:
+            entity:
+              domain: input_datetime
+        beschreibung:
+          name: Beschreibung (input_text)
+          selector:
+            entity:
+              domain: input_text
+        weinen_sensor:
+          name: Weinen-Sensor
+          selector:
+            entity:
+              domain: binary_sensor
+        bewegung_sensor:
+          name: Bewegungs-Sensor (nur für den Debug-Text)
+          selector:
+            entity:
+              domain: binary_sensor
+        benachrichtigen_script:
+          name: Benachrichtigungs-Script
+          selector:
+            entity:
+              domain: script
+    texte:
+      name: Texte
+      icon: mdi:text
+      input:
+        anzeigename:
+          name: Anzeigename (z. B. Babybett)
+          selector:
+            text:
+        ortstext:
+          name: Ortstext für Weinen (z. B. „Am Babybett“)
+          selector:
+            text:
+        kindname:
+          name: Name des Kindes
+          selector:
+            text:
+        tag:
+          name: Benachrichtigungs-Tag (Debug-Tag = Tag + _debug)
+          selector:
+            text:
+    toene:
+      name: Alexa-Töne
+      icon: mdi:bell-ring
+      collapsed: true
+      input:
+        ton_weint:
+          name: Ton bei Weinen
+          default: amzn_sfx_doorbell_chime_01
+          selector:
+            text:
+        ton_wach:
+          name: Ton bei Aufwachen
+          default: amzn_sfx_doorbell_01
+          selector:
+            text:
+
+mode: queued
+max: 5
+
+variables:
+  status_select: !input status_select
+  beschreibung: !input beschreibung
+  weinen_sensor: !input weinen_sensor
+  bewegung_sensor: !input bewegung_sensor
+  benachrichtigen_script: !input benachrichtigen_script
+  anzeigename: !input anzeigename
+  ortstext: !input ortstext
+  kindname: !input kindname
+  tag: !input tag
+  ton_weint: !input ton_weint
+  ton_wach: !input ton_wach
+
+triggers:
+  - trigger: state
+    entity_id: !input status_select
+    not_from:
+      - unavailable
+      - unknown
+    not_to:
+      - unavailable
+      - unknown
+
+conditions: []
+
+actions:
+  - action: input_datetime.set_datetime
+    target:
+      entity_id: !input status_seit
+    data:
+      timestamp: "{{ now().timestamp() }}"
+  - alias: "Statusänderung als leiser Text (nicht bei Aus, Weint oder Schläft → Wach: dafür gibt es eigene Meldungen; zum Abschalten diesen Schritt deaktivieren)"
+    if:
+      - condition: template
+        value_template: "{{ 'Aus' not in [trigger.from_state.state, trigger.to_state.state] and trigger.to_state.state != 'Weint' and not (trigger.from_state.state == 'Schläft' and trigger.to_state.state == 'Wach') }}"
+    then:
+      - action: script.notification_send
+        continue_on_error: true
+        data:
+          notify_title: "{{ anzeigename }}: {{ trigger.from_state.state }} → {{ trigger.to_state.state }}"
+          notify_message: "{{ now().strftime('%H:%M:%S') }} · {{ states(beschreibung) }} · Weinen {{ states(weinen_sensor) }}, Bewegung {{ states(bewegung_sensor) }}"
+          notify_tag: "{{ tag }}_debug"
+          notify_data:
+            - alert_once
+          notify_persistent: false
+  - choose:
+      - alias: "Kind weint"
+        conditions:
+          - condition: state
+            entity_id: !input status_select
+            state: "Weint"
+        sequence:
+          - action: "{{ benachrichtigen_script }}"
+            data:
+              titel: "👶 {{ kindname }} weint"
+              nachricht: "{{ ortstext }} wird Weinen erkannt ({{ now().strftime('%H:%M') }})."
+              ton: "{{ ton_weint }}"
+              prioritaet: true
+              sprache: "Achtung, {{ kindname }} weint."
+      - alias: "Kind aufgewacht"
+        conditions:
+          - condition: state
+            entity_id: !input status_select
+            state: "Wach"
+          - condition: template
+            value_template: "{{ trigger.from_state.state == 'Schläft' }}"
+        sequence:
+          - action: "{{ benachrichtigen_script }}"
+            data:
+              titel: "👶 {{ kindname }} ist wach"
+              nachricht: "{{ states(beschreibung) }} ({{ now().strftime('%H:%M') }})"
+              ton: "{{ ton_wach }}"
+              prioritaet: false
+              sprache: "{{ kindname }} ist wach."
+      - alias: "Wieder ruhig"
+        conditions:
+          - condition: state
+            entity_id: !input status_select
+            state:
+              - "Schläft"
+              - "Leer"
+              - "Aus"
+          - condition: template
+            value_template: "{{ trigger.from_state.state in ['Weint', 'Wach'] }}"
+        sequence:
+          - action: script.notification_delete
+            data:
+              notify_tag: "{{ tag }}"

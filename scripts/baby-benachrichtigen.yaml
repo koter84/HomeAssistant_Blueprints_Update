@@ -1,0 +1,178 @@
+blueprint:
+  source_url: "https://raw.githubusercontent.com/tefracky/homeassistant-blueprints/refs/heads/blueprints/scripts/baby-benachrichtigen.yaml"
+  name: Baby-Monitor benachrichtigen
+  description: |
+    # 📣 Baby-Monitor: benachrichtigen
+    **Version 1.0**
+
+    Push an alle, die zu Hause sind (über `script.notification_send_oliver` / `_tina`, Tag und Kanal = Eingabe „Tag/Kanal“), optional Alexa-Ton und/oder Alexa-Sprachansage auf allen erreichbaren Echos, plus optional eine WhatsApp-Nachricht.
+
+    Ablauf Alexa: erst der Ton (Feld `ton`), nach 3 s die Ansage (Feld `sprache`, `notify.alexa_media` Typ tts). Beides optional, leer = übersprungen. Push läuft parallel und wird nicht verzögert.
+
+    Echos: eine feste Liste plus optional ein Echo, das nur genutzt wird, solange ein Sperr-Sensor `off` ist (z. B. Gästezimmer, wenn dort niemand schläft). Nicht erreichbare Echos (unavailable) werden übersprungen.
+  domain: script
+  homeassistant:
+    min_version: "2024.10.0"
+  input:
+    kanal:
+      name: Tag / Android-Kanal (z. B. babybett)
+      selector:
+        text:
+    oliver_home:
+      name: Anwesenheit Oliver
+      selector:
+        entity:
+          domain: binary_sensor
+    tina_home:
+      name: Anwesenheit Tina
+      selector:
+        entity:
+          domain: binary_sensor
+    echo_immer:
+      name: Echos (immer)
+      selector:
+        entity:
+          domain: media_player
+          multiple: true
+    echo_optional:
+      name: Echo (nur wenn Sperr-Sensor aus)
+      default: ""
+      selector:
+        entity:
+          domain: media_player
+    echo_sperre:
+      name: Sperr-Sensor für das optionale Echo
+      default: ""
+      selector:
+        entity:
+          domain: binary_sensor
+    whatsapp_aktion:
+      name: WhatsApp-Aktion (z. B. notify.whatsapp_tina, leer = keine)
+      default: ""
+      selector:
+        text:
+
+mode: queued
+max: 5
+
+fields:
+  titel:
+    name: Titel
+    required: true
+    selector:
+      text:
+  nachricht:
+    name: Nachricht
+    required: true
+    selector:
+      text:
+        multiline: true
+  prioritaet:
+    name: Hohe Priorität
+    default: false
+    selector:
+      boolean:
+  ton:
+    name: Alexa-Ton (leer = keiner)
+    default: ""
+    selector:
+      text:
+  sprache:
+    name: Alexa-Ansage (leer = keine)
+    description: Kurzer Text, den die Echos sprechen. Ohne Uhrzeit/Emojis formulieren.
+    default: ""
+    selector:
+      text:
+
+variables:
+  kanal: !input kanal
+  oliver_home: !input oliver_home
+  tina_home: !input tina_home
+  echo_immer: !input echo_immer
+  echo_optional: !input echo_optional
+  echo_sperre: !input echo_sperre
+  whatsapp_aktion: !input whatsapp_aktion
+  echos: >-
+    {% set kandidaten = echo_immer | list %}{% if echo_optional and echo_sperre and is_state(echo_sperre, 'off') %}{% set kandidaten = kandidaten + [echo_optional] %}{% endif %}{{ kandidaten | reject('is_state', 'unavailable') | list }}
+  optionen: "{{ ['high_priority'] if prioritaet | default(false) | bool else ['alert_once'] }}"
+
+sequence:
+  - parallel:
+      - alias: "Alexa: Ton und Ansage"
+        sequence:
+          - alias: "Alexa: Ton abspielen"
+            if:
+              - condition: template
+                value_template: "{{ ton | default('') | length > 0 and echos | length > 0 }}"
+            then:
+              - action: media_player.play_media
+                alias: "Ton auf allen erreichbaren Echos"
+                continue_on_error: true
+                target:
+                  entity_id: "{{ echos }}"
+                data:
+                  media:
+                    media_content_id: "{{ ton }}"
+                    media_content_type: sound
+                    metadata: {}
+          - alias: "Alexa: Ansage sprechen"
+            if:
+              - condition: template
+                value_template: "{{ sprache | default('') | length > 0 and echos | length > 0 }}"
+            then:
+              - alias: "Wenn zuvor ein Ton lief: kurz warten, damit er nicht abgeschnitten wird"
+                if:
+                  - condition: template
+                    value_template: "{{ ton | default('') | length > 0 }}"
+                then:
+                  - alias: "3 s Pause nach dem Ton"
+                    delay:
+                      seconds: 3
+              - action: notify.alexa_media
+                alias: "Ansage auf allen erreichbaren Echos"
+                continue_on_error: true
+                data:
+                  data:
+                    type: tts
+                  message: "{{ sprache }}"
+                  target: "{{ echos }}"
+      - alias: "Push an Oliver (wenn zu Hause)"
+        if:
+          - condition: state
+            entity_id: !input oliver_home
+            state: "on"
+        then:
+          - action: script.notification_send_oliver
+            alias: "Push an Oliver senden"
+            data:
+              notify_channel: "{{ kanal }}"
+              notify_data: "{{ optionen }}"
+              notify_message: "{{ nachricht }}"
+              notify_persistent: false
+              notify_tag: "{{ kanal }}"
+              notify_title: "{{ titel }}"
+      - alias: "Push an Tina (wenn zu Hause)"
+        if:
+          - condition: state
+            entity_id: !input tina_home
+            state: "on"
+        then:
+          - action: script.notification_send_tina
+            alias: "Push an Tina senden"
+            data:
+              notify_channel: "{{ kanal }}"
+              notify_data: "{{ optionen }}"
+              notify_message: "{{ nachricht }}"
+              notify_persistent: false
+              notify_tag: "{{ kanal }}"
+              notify_title: "{{ titel }}"
+      - alias: "WhatsApp (optional, ungefiltert)"
+        if:
+          - condition: template
+            value_template: "{{ whatsapp_aktion | length > 0 }}"
+        then:
+          - action: "{{ whatsapp_aktion }}"
+            continue_on_error: true
+            data:
+              title: "{{ titel }}"
+              message: "{{ titel }}: {{ nachricht }}"
