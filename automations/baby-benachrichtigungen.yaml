@@ -14,7 +14,7 @@ blueprint:
     - Alle anderen Wechsel (außer von/nach „Aus“): leiser Debug-Text mit Tag `<Tag>_debug`. Zum Abschalten den Schritt „Statusänderung als leiser Text“ deaktivieren.
 
     Versand über ein Benachrichtigungs-Script (Blueprint `tefracky/baby-benachrichtigen.yaml`) mit den Feldern titel, nachricht, ton, prioritaet, sprache.
-    Löschen über `script.notification_delete` (Blueprint `tefracky/notification-send.yaml`).
+    Löschen über `script.benachrichtigung_loschen` (Blueprint `tefracky/notification-send.yaml`).
   domain: automation
   homeassistant:
     min_version: "2024.10.0"
@@ -128,7 +128,7 @@ actions:
       - condition: template
         value_template: "{{ 'Aus' not in [trigger.from_state.state, trigger.to_state.state] and trigger.to_state.state != 'Weint' and not (trigger.from_state.state == 'Schläft' and trigger.to_state.state == 'Wach') }}"
     then:
-      - action: script.notification_send
+      - action: script.benachrichtigung_senden
         continue_on_error: true
         data:
           notify_title: "{{ anzeigename }}: {{ trigger.from_state.state }} → {{ trigger.to_state.state }}"
@@ -177,6 +177,6 @@ actions:
           - condition: template
             value_template: "{{ trigger.from_state.state in ['Weint', 'Wach'] }}"
         sequence:
-          - action: script.notification_delete
+          - action: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ tag }}"

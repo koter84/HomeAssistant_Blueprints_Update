@@ -85,12 +85,12 @@ trigger:
     to: "off"
     id: window_closed
   - platform: state
-    entity_id: binary_sensor.awake
+    entity_id: binary_sensor.wach
     to: "on"
     for: "00:03:00"
     id: awake_on
   - platform: state
-    entity_id: binary_sensor.awake
+    entity_id: binary_sensor.wach
     to: "off"
     id: awake_off
   - platform: state
@@ -114,7 +114,7 @@ condition:
     entity_id: binary_sensor.zu_hause
     state: "on"
   - condition: state
-    entity_id: input_boolean.vacation
+    entity_id: input_boolean.urlaub
     state: "off"
 action:
   - alias: Entprellen (verhindert überlappende Durchläufe bei Trigger-Kaskaden)
@@ -142,7 +142,7 @@ action:
         {% endif %}
       # Nachtmodus: awake = off UND jemand schläft in diesem Raum
       ventilator_ist_nacht: >-
-        {{ is_state('binary_sensor.awake', 'off') and raum_schlaeft }}
+        {{ is_state('binary_sensor.wach', 'off') and raum_schlaeft }}
       # Nachtlogik greift wenn Nacht-in-diesem-Raum ODER manueller Schalter
       ventilator_nacht_or_schalter: >-
         {{ ventilator_ist_nacht or is_state(manual_override_switch, 'on') }}
@@ -154,7 +154,7 @@ action:
       ventilator_modus: >-
         {% if ventilator_ist_nacht %}
           forward
-        {% elif is_state('binary_sensor.awake', 'on')
+        {% elif is_state('binary_sensor.wach', 'on')
               and is_state(window_sensor, 'on')
               and innen_temp > aussen_temp %}
           reverse
@@ -163,7 +163,7 @@ action:
         {% endif %}
       # Zielgeschwindigkeit: 0 = aus
       ventilator_zielgeschwindigkeit: >-
-        {% if is_state('binary_sensor.awake', 'on')
+        {% if is_state('binary_sensor.wach', 'on')
               and not is_state(manual_override_switch, 'on')
               and is_state(window_sensor, 'on')
               and innen_temp > aussen_temp %}

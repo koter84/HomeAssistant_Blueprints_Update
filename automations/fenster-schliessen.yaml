@@ -36,13 +36,13 @@ blueprint:
 
 
     **Bedingungen für die Meldung (falls konfiguriert):** Alle Aktiv-Sensoren `on`
-    (z. B. `binary_sensor.awake`) und mindestens ein Anwesenheits-Sensor `on`.
+    (z. B. `binary_sensor.wach`) und mindestens ein Anwesenheits-Sensor `on`.
     Sind sie noch nicht erfüllt, wird die Meldung nachgeholt, sobald sie es sind
     (z. B. beim Aufwachen), sofern das Fenster dann noch offen ist.
 
 
-    **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.notification_send`,
-    `_oliver` oder `_tina`) und `script.notification_delete`
+    **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.benachrichtigung_senden`,
+    `_oliver` oder `_tina`) und `script.benachrichtigung_loschen`
     (Blueprint `tefracky/notification-send.yaml`).
   domain: automation
   homeassistant:
@@ -87,7 +87,7 @@ blueprint:
               multiple: true
         active_sensors:
           name: Aktiv-Sensoren (alle müssen an sein)
-          description: Optional. Z. B. `binary_sensor.awake`.
+          description: Optional. Z. B. `binary_sensor.wach`.
           default: []
           selector:
             entity:
@@ -243,16 +243,16 @@ blueprint:
         notify_script:
           name: Benachrichtigungs-Skript
           description: Über welches Skript die Meldung verschickt wird (nur Handys, kein Telegram).
-          default: script.notification_send
+          default: script.benachrichtigung_senden
           selector:
             select:
               options:
                 - label: Oliver und Tina (Standard-Geräteliste)
-                  value: script.notification_send
+                  value: script.benachrichtigung_senden
                 - label: Nur Oliver (Handys)
-                  value: script.notification_send_oliver
+                  value: script.benachrichtigung_senden_oliver
                 - label: Nur Tina (Handys)
-                  value: script.notification_send_tina
+                  value: script.benachrichtigung_senden_tina
         notify_channel:
           name: Android-Kanal
           description: Gemeinsamer Kanal für alle Fenster-Meldungen (Ton/Priorität einmal in Android einstellen). Leer = ein Kanal je Tag.
@@ -452,6 +452,6 @@ actions:
     wait_template: >
       {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0 }}
   - alias: Meldung löschen
-    action: script.notification_delete
+    action: script.benachrichtigung_loschen
     data:
       notify_tag: "{{ tag }}"

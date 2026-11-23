@@ -90,7 +90,7 @@ sequence:
           seconds: 2
       - action: script.turn_on
         target:
-          entity_id: script.speak_last_alexa
+          entity_id: script.antwort_letzte_alexa
         data:
           variables:
             message: "{{ this.attributes.friendly_name }}"

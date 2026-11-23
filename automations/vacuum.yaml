@@ -34,7 +34,7 @@ blueprint:
     - [Scheduler-Integration](https://github.com/nielsfaber/scheduler-component) (HACS)
     - [Scheduler-Card](https://github.com/nielsfaber/scheduler-card) (HACS - optional, aber empfohlen)
     - Ein `input_boolean` als Schalter für den Urlaubsmodus.
-    - Zeitplan mit `input_button`, in dessen Name der Reinigungsmodus steckt (z. B. `input_button.vacuum_downstairs_start_turbo`)
+    - Zeitplan mit `input_button`, in dessen Name der Reinigungsmodus steckt (z. B. `input_button.staubsauger_unten_starten_turbo`)
     - Staubsauger mit Unterstützung für `fan_speed` (z. B. Roborock)
 
 
@@ -77,8 +77,10 @@ variables:
   notify_tag: !input notify_tag
   suction_mode: >
     {% set result = state_attr(vacuum_entity_id, 'fan_speed') %}
-    {% if trigger.entity_id is defined and "input_button.vacuum_" in trigger.entity_id %}
-      {% set result = trigger.entity_id | regex_replace(find='^input_button\\.vacuum_[^_]+_start_', replace='') | string %}
+    {% if trigger.entity_id is defined and trigger.entity_id.startswith("input_button.") and "_starten_" in trigger.entity_id %}
+      {# Modus steht am Ende der Button-ID, z. B. input_button.staubsauger_unten_starten_maximum #}
+      {% set modi = {"leise": "quiet", "ausgeglichen": "balanced", "turbo": "turbo", "maximum": "max", "aus": "off"} %}
+      {% set result = modi.get(trigger.entity_id.split("_starten_")[-1], result) %}
     {% endif %}
     {{ result }}
   suction_mode_name: >
@@ -158,7 +160,7 @@ action:
               - alias: "FALL 1.1: Urlaubsmodus ist AN - er Staubsauger startet sofort ohne Nachfrage."
                 conditions:
                   - condition: state
-                    entity_id: input_boolean.vacation
+                    entity_id: input_boolean.urlaub
                     state: 'on'
                 sequence:
                   - service: vacuum.start
@@ -167,7 +169,7 @@ action:
                     alias: "Staubsauger im Urlaubsmodus direkt starten"
             default:
               - alias: "FALL 1.2: Urlaubsmodus ist AUS (Standard) - Eine Benachrichtigung wird gesendet, um den Start zu bestätigen."
-                service: script.notification_send
+                service: script.benachrichtigung_senden
                 data:
                   notify_title: "{{ vacuum_friendly_name }} einsatzbereit"
                   notify_message: >
@@ -180,7 +182,7 @@ action:
                   send_car: false
                   action_button_delete: "Löschen"
                   additional_message_actions:
-                    - action: "{{ 'start' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                    - action: "{{ 'start' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                       title: "Start"
 
       - alias: "AKTION 2: Auf eine Benachrichtigungsaktion reagieren"
@@ -237,7 +239,7 @@ action:
           - condition: trigger
             id: vacuum_started
         sequence:
-          - service: script.notification_send
+          - service: script.benachrichtigung_senden
             data:
               notify_title: "{{ vacuum_friendly_name }} reinigt"
               notify_message: "Der Saugroboter reinigt jetzt im Modus '{{ suction_mode_name }}'."
@@ -248,11 +250,11 @@ action:
               send_car: false
               action_button_delete: "Löschen"
               additional_message_actions:
-                - action: "{{ 'pause' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'pause' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Pause"
-                - action: "{{ 'stop' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'stop' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Stop"
-                - action: "{{ 'dock' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'dock' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Dock"
             alias: "Benachrichtigung 'Reinigung gestartet' senden"
       - alias: "AKTION 4: Reinigung wurde pausiert"
@@ -260,7 +262,7 @@ action:
           - condition: trigger
             id: vacuum_paused
         sequence:
-          - service: script.notification_send
+          - service: script.benachrichtigung_senden
             data:
               notify_title: "{{ vacuum_friendly_name }} pausiert"
               notify_message: "Der Saugroboter ist pausiert."
@@ -271,9 +273,9 @@ action:
               send_car: false
               action_button_delete: "Löschen"
               additional_message_actions:
-                - action: "{{ 'start' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'start' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Fortsetzen"
-                - action: "{{ 'dock' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'dock' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Dock"
             alias: "Benachrichtigung 'Pausiert (paused)' senden"
       - alias: "AKTION 5: Reinigung ist inaktiv/gestoppt"
@@ -281,7 +283,7 @@ action:
           - condition: trigger
             id: vacuum_idle # Korrigiert von vacuum_paused
         sequence:
-          - service: script.notification_send
+          - service: script.benachrichtigung_senden
             data:
               notify_title: "{{ vacuum_friendly_name }} gestoppt"
               notify_message: "Der Saugroboter ist inaktiv."
@@ -292,9 +294,9 @@ action:
               send_car: false
               action_button_delete: "Löschen"
               additional_message_actions:
-                - action: "{{ 'start' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'start' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Start"
-                - action: "{{ 'dock' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'dock' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Dock"
             alias: "Benachrichtigung 'Gestoppt (idle)' senden"
       - alias: "AKTION 6: Staubsauger kehrt zur Basis zurück"
@@ -302,7 +304,7 @@ action:
           - condition: trigger
             id: vacuum_returning
         sequence:
-          - service: script.notification_send
+          - service: script.benachrichtigung_senden
             data:
               notify_title: "{{ vacuum_friendly_name }} kehrt zur Ladestation zurück"
               notify_message: "Der Saugroboter ist auf dem Rückweg."
@@ -313,7 +315,7 @@ action:
               send_car: false
               action_button_delete: "Löschen"
               additional_message_actions:
-                - action: "{{ 'pause' + states('input_text.notification_action_tag_separator') + notify_tag }}"
+                - action: "{{ 'pause' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag }}"
                   title: "Pause"
             alias: "Benachrichtigung 'Rückkehr' senden"
       - alias: "AKTION 7: Staubsauger ist angedockt"
@@ -321,7 +323,7 @@ action:
           - condition: trigger
             id: vacuum_docked
         sequence:
-          - service: script.notification_delete
+          - service: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ notify_tag }}"
             alias: "Benachrichtigung löschen"

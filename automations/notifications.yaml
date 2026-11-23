@@ -9,7 +9,7 @@ blueprint:
     - 🎨 **Eigenes Icon und Icon-Farbe (nur Android)**
       - Neue optionale Inputs **Icon** (`notify_icon`) und **Icon-Farbe** (`notify_icon_colour`), übernommen aus
         den Blackshome-Vorlagen (Notifications & Announcements 1.5 / State Notifications & Actions 1.8).
-      - Erfordert `script.notification_send` ab Blueprint-Version 2.1. Ohne Angabe bleibt alles wie bisher.
+      - Erfordert `script.benachrichtigung_senden` ab Blueprint-Version 2.1. Ohne Angabe bleibt alles wie bisher.
 
     - 🔀 **Modus `parallel` statt `restart`**
       - Jeder Button-Druck (App oder Telegram) löst alle Benachrichtigungs-Automationen aus. Mit `restart` brach
@@ -32,10 +32,10 @@ blueprint:
       - Die Beschreibung von „Endzustand“ weist jetzt mit Beispiel-YAML darauf hin, dass jeder Lösch-Trigger `id: clear_notification_trigger` braucht. Ohne ID läuft der Trigger stumm in den Zweig „Trigger-Bedingungen“ und die Benachrichtigung wird nie automatisch gelöscht.
 
     - ⏱️ **Chronometer & Zeitstempel repariert**
-      - `notify_chronometer` und `notify_when` werden jetzt in die Werte übersetzt, die `script.notification_send` erwartet (`aus`/`stoppuhr`/`countdown` bzw. ISO-Zeitstempel). Vorher hatte der Chronometer keine Wirkung und `notify_when: true` konnte das Skript abbrechen lassen.
+      - `notify_chronometer` und `notify_when` werden jetzt in die Werte übersetzt, die `script.benachrichtigung_senden` erwartet (`aus`/`stoppuhr`/`countdown` bzw. ISO-Zeitstempel). Vorher hatte der Chronometer keine Wirkung und `notify_when: true` konnte das Skript abbrechen lassen.
       - Neu: **Countdown-Dauer** (`notify_chronometer_duration`) – > 0 macht aus dem Chronometer einen Countdown.
 
-    - ➕ **Neue optionale Versand-Optionen** (aus `script.notification_send`)
+    - ➕ **Neue optionale Versand-Optionen** (aus `script.benachrichtigung_senden`)
       - **Geräte** (`notify_devices`), **Android-Kanal** (`notify_channel`), **Automatisch ausblenden** (`notify_timeout`), **Persistente HA-Benachrichtigung** (`notify_persistent`).
       - Neue Android-Option **Nur einmal benachrichtigen** (`alert_once`).
       - Alle neuen Inputs haben Defaults, die dem bisherigen Verhalten entsprechen.
@@ -45,7 +45,7 @@ blueprint:
       - `send_to_work` beschreibt jetzt das tatsächliche Verhalten (keine fest verdrahteten Geräte-IDs mehr im Text).
 
     - ✂️ **Aufräumen**
-      - Ungenutzte Variable `notify_devices` (fest verdrahtete Geräte-IDs) entfernt – die Geräteauswahl erfolgt in `script.notification_send`.
+      - Ungenutzte Variable `notify_devices` (fest verdrahtete Geräte-IDs) entfernt – die Geräteauswahl erfolgt in `script.benachrichtigung_senden`.
       - Bestehende Inputs, Namen und Defaults unverändert (außer `send_to_car`, s. o.) – bestehende Automationen müssen nicht angepasst werden.
 
     ## **Version 1.10**
@@ -62,19 +62,19 @@ blueprint:
         - **`notify_url`**: Definiert eine URL, die beim Klick auf die Benachrichtigung geöffnet wird.
 
     - ⚙️ **Optimierte Skript-Übergabe**
-      - Die neuen, optionalen Variablen werden nun korrekt an das zentrale `script.notification_send` übergeben, um die Kompatibilität sicherzustellen und die neuen Funktionen zu aktivieren.
+      - Die neuen, optionalen Variablen werden nun korrekt an das zentrale `script.benachrichtigung_senden` übergeben, um die Kompatibilität sicherzustellen und die neuen Funktionen zu aktivieren.
 
     ## **Version 1.9**
 
     - 📞 **Telegram-Integration für Aktionen** Die Automation unterstützt nun Callback-Queries von Telegram. Interaktive Buttons in Telegram-Nachrichten können jetzt ebenfalls Aktionen auslösen, genau wie bei den mobilen App-Benachrichtigungen. Hierfür wurde ein neuer Trigger für `telegram_callback` hinzugefügt.
     - 📦 **Zentralisierte Event-Verarbeitung** Die Logik zum Auslesen der Aktions- und Tag-Daten aus den Events (`mobile_app_notification_action` und `telegram_callback`) wurde in ein zentrales Skript `script.benachrichtigung_event_daten_auslesen` ausgelagert. Dies vereinfacht die Wartung und macht die Automation übersichtlicher.
-    - ⚙️ **Dynamischer Action-Separator** Der bisher fest codierte Trenner `_action_tag_separator_` wurde durch einen dynamischen Wert aus `input_text.notification_action_tag_separator` ersetzt. Dies erhöht die Flexibilität und Standardisierung bei der Erstellung von Action-Strings.
+    - ⚙️ **Dynamischer Action-Separator** Der bisher fest codierte Trenner `_action_tag_separator_` wurde durch einen dynamischen Wert aus `input_text.benachrichtigung_action_tag_separator` ersetzt. Dies erhöht die Flexibilität und Standardisierung bei der Erstellung von Action-Strings.
 
 
     ## **Version 1.8**
 
     - 🚀 **Zentralisierung des Benachrichtigungsversands**  
-      Die vorher im Blueprint inline hinterlegten Schritte für `persistent_notification.create` und `notify.mobile_app_…` wurden entfernt und durch einen einzigen Aufruf des Skripts `script.notification_send` ersetzt.  
+      Die vorher im Blueprint inline hinterlegten Schritte für `persistent_notification.create` und `notify.mobile_app_…` wurden entfernt und durch einen einzigen Aufruf des Skripts `script.benachrichtigung_senden` ersetzt.  
       - Alle relevanten Parameter (`notify_title`, `notify_message`, `notify_data`, `notify_tag`, `send_to_car`, `send_to_work`, `action_button_delete` usw.) werden unverändert an das Skript übergeben.  
       - Die Wartbarkeit und Erweiterbarkeit wurden dadurch deutlich verbessert.
 
@@ -183,10 +183,10 @@ blueprint:
     **1.2**: Benachrichtigungen senden und löschen an Skripte ausgelagert
 
     - 🗑 **Refaktorierte Löschlogik:**
-      Statt der bisherigen, manuellen Abfolge zum Löschen persistenter Benachrichtigungen wird nun das zentrale Skript `script.notification_delete` aufgerufen. Dies sorgt für einen klareren Ablauf und verbesserte Wartbarkeit.
+      Statt der bisherigen, manuellen Abfolge zum Löschen persistenter Benachrichtigungen wird nun das zentrale Skript `script.benachrichtigung_loschen` aufgerufen. Dies sorgt für einen klareren Ablauf und verbesserte Wartbarkeit.
 
     - 🔔 **Modularisierte Benachrichtigungsroutine:**
-      Ein neuer Choose-Zweig „Check if notification is enabled“ überprüft, ob mobile App-Benachrichtigungen aktiviert sind und ob Geräte vorhanden sind, und löst dann das Skript `script.notification_send` aus – inklusive Übergabe aller relevanten Parameter wie Titel, Nachricht, Daten und Aktions-Buttons.
+      Ein neuer Choose-Zweig „Check if notification is enabled“ überprüft, ob mobile App-Benachrichtigungen aktiviert sind und ob Geräte vorhanden sind, und löst dann das Skript `script.benachrichtigung_senden` aus – inklusive Übergabe aller relevanten Parameter wie Titel, Nachricht, Daten und Aktions-Buttons.
 
     - 🧹 **Bereinigung der Legacy-Struktur:**
       Der bisher verwendete `default`-Block, der separate Zuständigkeiten für Gerätebenachrichtigungen und das Erstellen persistenter Nachrichten innehatte, wurde komplett entfernt, um Redundanzen abzubauen und die Logik zu vereinheitlichen.
@@ -327,7 +327,7 @@ blueprint:
         notify_when_relative:
           name: "Relativer Zeitstempel"
           description: >
-            Relativer Zeitstempel in **Sekunden** (nur Android), wird unverändert an `script.notification_send` übergeben.
+            Relativer Zeitstempel in **Sekunden** (nur Android), wird unverändert an `script.benachrichtigung_senden` übergeben.
             Leer oder 0 = aus. Wird ignoriert, wenn Chronometer oder Zeitstempel aktiv sind.
           default: ""
           selector:
@@ -341,7 +341,7 @@ blueprint:
         send_to_work:
           name: "Arbeits-Benachrichtigung aktivieren"
           description: >
-            Wenn aktiviert (Standard: false), nimmt `script.notification_send` zusätzlich die Arbeitsgeräte
+            Wenn aktiviert (Standard: false), nimmt `script.benachrichtigung_senden` zusätzlich die Arbeitsgeräte
             in die Benachrichtigungsliste auf. Die Geräteliste wird zentral im Skript gepflegt.
             Wird ignoriert, wenn unter „Geräte“ eine eigene Auswahl getroffen wurde.
           default: false
@@ -350,7 +350,7 @@ blueprint:
         notify_devices:
           name: "Geräte (optional)"
           description: >
-            Nur an diese Mobile-App-Geräte senden. Leer = Standardliste aus `script.notification_send`.
+            Nur an diese Mobile-App-Geräte senden. Leer = Standardliste aus `script.benachrichtigung_senden`.
           default: []
           selector:
             device:
@@ -626,7 +626,7 @@ actions:
                   - condition: template
                     value_template: "{{ action == 'dismiss' }}"
                 sequence:
-                  - action: script.notification_delete
+                  - action: script.benachrichtigung_loschen
                     data:
                       notify_tag: "{{ notify_tag }}"
       - alias: "Prüfe, ob Endzustand erreicht wurde (Lösch-Trigger)"
@@ -639,19 +639,19 @@ actions:
           - alias: "Bedingungen für Endzustand prüfen"
             condition: and
             conditions: !input clear_conditions
-          - action: script.notification_delete
+          - action: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ notify_tag }}"
       - alias: "Prüfe Trigger-Bedingungen für Hauptbenachrichtigung"
         conditions: !input trigger_conditions
         sequence:
-          - action: script.notification_send
+          - action: script.benachrichtigung_senden
             data:
               notify_title: !input notify_title
               notify_message: !input notify_message
               notify_data: !input notify_data
               notify_tag: !input notify_tag
-              # Boolean-Inputs auf die Werte übersetzen, die script.notification_send erwartet
+              # Boolean-Inputs auf die Werte übersetzen, die script.benachrichtigung_senden erwartet
               notify_chronometer: >-
                 {{ ('countdown' if notify_chronometer_duration | int(0) > 0 else 'stoppuhr')
                    if notify_chronometer else 'aus' }}
@@ -670,12 +670,12 @@ actions:
               additional_message_actions: >
                 {% set actions = [] %}
                 {% if 'enable_action_button_1' in include_action_buttons %}
-                  {% set actions = actions + [{ 'action': 'action_button_1' + states('input_text.notification_action_tag_separator') + notify_tag, 'title': action_button_1 }] %}
+                  {% set actions = actions + [{ 'action': 'action_button_1' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag, 'title': action_button_1 }] %}
                 {% endif %}
                 {% if 'enable_action_button_2' in include_action_buttons %}
-                  {% set actions = actions + [{ 'action': 'action_button_2' + states('input_text.notification_action_tag_separator') + notify_tag, 'title': action_button_2 }] %}
+                  {% set actions = actions + [{ 'action': 'action_button_2' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag, 'title': action_button_2 }] %}
                 {% endif %}
                 {% if 'enable_action_button_3' in include_action_buttons %}
-                  {% set actions = actions + [{ 'action': 'action_button_3' + states('input_text.notification_action_tag_separator') + notify_tag, 'title': action_button_3 }] %}
+                  {% set actions = actions + [{ 'action': 'action_button_3' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag, 'title': action_button_3 }] %}
                 {% endif %}
                 {{ actions }}

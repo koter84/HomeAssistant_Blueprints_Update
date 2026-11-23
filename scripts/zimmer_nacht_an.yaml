@@ -34,7 +34,7 @@ blueprint:
     (unavailable-Entitäten, Funkfehler) abzufangen. Für die Switches ist
     retries auf 9 erhöht (Standard: 7) – siehe Kommentar bei den jeweiligen
     Schritten. Scheitert ein Switch trotz aller Retries endgültig, wird per
-    on_error eine Android-Push-Benachrichtigung ausgelöst (script.notification_send)
+    on_error eine Android-Push-Benachrichtigung ausgelöst (script.benachrichtigung_senden)
     – die Selbstheilung (5-Min-Poll) versucht es trotzdem automatisch weiter,
     die Benachrichtigung dient nur der Sichtbarkeit.
   domain: script
@@ -136,7 +136,7 @@ sequence:
           variables:
             message: "{{ this.attributes.friendly_name }}"
         target:
-          entity_id: script.speak_last_alexa
+          entity_id: script.antwort_letzte_alexa
 
   # ── 3. Zusätzliche Aktionen UND Haupt-Steckdose/Licht parallel ausführen ──
   # Vorher liefen diese sequenziell hintereinander: extra_actions (kann z.B.
@@ -176,7 +176,7 @@ sequence:
                 entity_id: !input mosquito_save_sensor
                 state: "off"
               - condition: state
-                entity_id: binary_sensor.sun_is_down
+                entity_id: binary_sensor.sonnenuntergang
                 state: "on"
             then:
               - alias: "Geräte einschalten"
@@ -202,7 +202,7 @@ sequence:
                       # NACH dem echten Scheitern – nicht wie ein externer Watcher,
                       # der raten müsste).
                       #
-                      # WICHTIG (Bug vom 06.09., betraf switch.karussell/taj_mahal):
+                      # WICHTIG (Bug vom 06.09., betraf switch.gastezimmer_karussell/taj_mahal):
                       # entity_id/action, die retry.action laut eigener Doku für
                       # on_error-Templates bereitstellt, sind hier NICHT nutzbar.
                       # Home Assistant rendert das komplette data:-Feld dieses
@@ -232,7 +232,7 @@ sequence:
                             - alias: "Benachrichtigung: Schalten endgültig fehlgeschlagen"
                               action: script.turn_on
                               target:
-                                entity_id: script.notification_send
+                                entity_id: script.benachrichtigung_senden
                               data:
                                 variables:
                                   notify_title: "⚠️ Gerät reagiert nicht"
@@ -290,7 +290,7 @@ sequence:
             - trigger: state
               entity_id: !input mosquito_save_sensor
             - trigger: state
-              entity_id: binary_sensor.sun_is_down
+              entity_id: binary_sensor.sonnenuntergang
               to: "on"
           timeout:
             # Selbstheilung: bewusst kurz (5 Min) statt 1h. retry.action läuft
@@ -334,7 +334,7 @@ sequence:
               entity_id: !input mosquito_save_sensor
               state: "off"
             - condition: state
-              entity_id: binary_sensor.sun_is_down
+              entity_id: binary_sensor.sonnenuntergang
               state: "on"
           then:
             # ASYMMETRISCHE Selbstheilung: das "Einschalten" darf NUR bei
@@ -370,7 +370,7 @@ sequence:
                               - alias: "Benachrichtigung: Schalten endgültig fehlgeschlagen"
                                 action: script.turn_on
                                 target:
-                                  entity_id: script.notification_send
+                                  entity_id: script.benachrichtigung_senden
                                 data:
                                   variables:
                                     notify_title: "⚠️ Gerät reagiert nicht"
@@ -402,7 +402,7 @@ sequence:
                   then:
                     # retries: 9 + on_error – siehe Kommentar bei Schritt 3b.
                     # Genau dieser Aufruf war am 07.08. betroffen:
-                    # switch.leuchtturm ist während der Retry-Versuche kurz
+                    # switch.arbeitszimmer_steckdosenleiste_leuchtturm ist während der Retry-Versuche kurz
                     # "unavailable" geworden und danach mit altem Zustand
                     # ("on") zurückgekommen, ohne dass "off" je bestätigt
                     # wurde. Dieser Zweig läuft bewusst IMMER (auch beim
@@ -420,7 +420,7 @@ sequence:
                           - alias: "Benachrichtigung: Schalten endgültig fehlgeschlagen"
                             action: script.turn_on
                             target:
-                              entity_id: script.notification_send
+                              entity_id: script.benachrichtigung_senden
                             data:
                               variables:
                                 notify_title: "⚠️ Gerät reagiert nicht"

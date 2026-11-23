@@ -24,7 +24,7 @@ blueprint:
 
     - Alle gewählten Fensterkontakte müssen geschlossen sein (keine Meldung bei offenem Fenster).
 
-    - Optional: Alle „Aktiv-Sensoren“ müssen `on` sein (z. B. `binary_sensor.awake`) und
+    - Optional: Alle „Aktiv-Sensoren“ müssen `on` sein (z. B. `binary_sensor.wach`) und
       mindestens ein „Anwesenheits-Sensor“ muss `on` sein (z. B. Oliver/Tina zu Hause).
 
 
@@ -54,8 +54,8 @@ blueprint:
     feste Schwellen (1000 ppm) eignen sich Sensoren mit echter CO₂-Messung (NDIR, z. B. Ikea Alpstuga, SCD40).
 
 
-    **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.notification_send`,
-    `_oliver` oder `_tina`) und `script.notification_delete`
+    **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.benachrichtigung_senden`,
+    `_oliver` oder `_tina`) und `script.benachrichtigung_loschen`
     (Blueprint `tefracky/notification-send.yaml`).
 
 
@@ -104,7 +104,7 @@ blueprint:
           name: Aktiv-Sensoren (alle müssen an sein)
           description: >
             Optional. Es wird nur gemeldet, wenn alle gewählten Sensoren `on` sind
-            (z. B. `binary_sensor.awake`).
+            (z. B. `binary_sensor.wach`).
           default: []
           selector:
             entity:
@@ -292,16 +292,16 @@ blueprint:
         notify_script:
           name: Benachrichtigungs-Skript
           description: Über welches Skript die Meldung verschickt wird (nur Handys, kein Telegram).
-          default: script.notification_send
+          default: script.benachrichtigung_senden
           selector:
             select:
               options:
                 - label: Oliver und Tina (Standard-Geräteliste)
-                  value: script.notification_send
+                  value: script.benachrichtigung_senden
                 - label: Nur Oliver (Handys)
-                  value: script.notification_send_oliver
+                  value: script.benachrichtigung_senden_oliver
                 - label: Nur Tina (Handys)
-                  value: script.notification_send_tina
+                  value: script.benachrichtigung_senden_tina
         notify_persistent:
           name: Zusätzlich persistente HA-Meldung
           default: false
@@ -434,7 +434,7 @@ actions:
               {{ trigger.id in ['co2_ok', 'window_opened']
                  and (not co2_alert_flag or is_state(co2_alert_flag, 'on')) }}
         then:
-          - action: script.notification_delete
+          - action: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ tag_base ~ '_co2' }}"
           - if:
@@ -451,7 +451,7 @@ actions:
               {{ trigger.id in ['humidity_ok', 'window_opened']
                  and (not humidity_alert_flag or is_state(humidity_alert_flag, 'on')) }}
         then:
-          - action: script.notification_delete
+          - action: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ tag_base ~ '_feuchte' }}"
           - if:
@@ -468,7 +468,7 @@ actions:
               {{ trigger.id in ['cool_end', 'window_opened']
                  and cool_alert_flag != '' and is_state(cool_alert_flag, 'on') }}
         then:
-          - action: script.notification_delete
+          - action: script.benachrichtigung_loschen
             data:
               notify_tag: "{{ tag_base ~ '_kuehl' }}"
           - action: input_boolean.turn_off

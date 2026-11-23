@@ -5,7 +5,7 @@ blueprint:
     # 📣 Baby-Monitor: benachrichtigen
     **Version 1.0**
 
-    Push an alle, die zu Hause sind (über `script.notification_send_oliver` / `_tina`, Tag und Kanal = Eingabe „Tag/Kanal“), optional Alexa-Ton und/oder Alexa-Sprachansage auf allen erreichbaren Echos, plus optional eine WhatsApp-Nachricht.
+    Push an alle, die zu Hause sind (über `script.benachrichtigung_senden_oliver` / `_tina`, Tag und Kanal = Eingabe „Tag/Kanal“), optional Alexa-Ton und/oder Alexa-Sprachansage auf allen erreichbaren Echos, plus optional eine WhatsApp-Nachricht.
 
     Ablauf Alexa: erst der Ton (Feld `ton`), nach 3 s die Ansage (Feld `sprache`, `notify.alexa_media` Typ tts). Beides optional, leer = übersprungen. Push läuft parallel und wird nicht verzögert.
 
@@ -142,7 +142,7 @@ sequence:
             entity_id: !input oliver_home
             state: "on"
         then:
-          - action: script.notification_send_oliver
+          - action: script.benachrichtigung_senden_oliver
             alias: "Push an Oliver senden"
             data:
               notify_channel: "{{ kanal }}"
@@ -157,7 +157,7 @@ sequence:
             entity_id: !input tina_home
             state: "on"
         then:
-          - action: script.notification_send_tina
+          - action: script.benachrichtigung_senden_tina
             alias: "Push an Tina senden"
             data:
               notify_channel: "{{ kanal }}"

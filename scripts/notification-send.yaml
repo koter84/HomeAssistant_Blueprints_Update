@@ -6,7 +6,7 @@ blueprint:
 
     Zentrales Skript für Android/iOS-Benachrichtigungen an eine Geräteliste – optional zusätzlich als
     persistente Benachrichtigung in Home Assistant. Wird vom Automation-Blueprint
-    `notifications.yaml` und von vielen weiteren Automationen als `script.notification_send` aufgerufen.
+    `notifications.yaml` und von vielen weiteren Automationen als `script.benachrichtigung_senden` aufgerufen.
 
     Die Geräte werden **im Blueprint** gepflegt (Standard- und Arbeitsgeräte), beim Aufruf kann über
     das Feld `notify_devices` eine eigene Geräteliste übergeben werden.
@@ -22,7 +22,7 @@ blueprint:
 
     ## **Version 2.0**
 
-    - 🔄 **Neu aufgebaut als Abbild des produktiven `script.notification_send`**
+    - 🔄 **Neu aufgebaut als Abbild des produktiven `script.benachrichtigung_senden`**
       - Die alte Blueprint-Version (`send_car`, fest verdrahtete Geräte) war nicht mehr im Einsatz und ist ersetzt.
       - Felder und Verhalten entsprechen 1:1 dem bisherigen UI-Skript – Aufrufer müssen nichts ändern.
 
@@ -219,7 +219,7 @@ fields:
     name: Geräte (optional)
     description: >
       Nur an diese Geräte senden (Mobile-App-Geräte). Leer = Standardgeräte aus dem Blueprint,
-      mit „Arbeit“ zusätzlich die Arbeitsgeräte. Für Personen: script.notification_send_oliver / _tina.
+      mit „Arbeit“ zusätzlich die Arbeitsgeräte. Für Personen: script.benachrichtigung_senden_oliver / _tina.
     required: false
     selector:
       device:
@@ -289,7 +289,7 @@ sequence:
         {% set message.data = message.data | combine({'channel': notify_channel if notify_channel else notify_tag, 'tag': notify_tag}) %}
         {% if 'sticky' in notify_data %}
           {% set message.data = message.data | combine({'sticky': true, 'persistent': true}) %}
-          {% set actions = actions + [{'action': 'dismiss' + states('input_text.notification_action_tag_separator') + notify_tag, 'title': action_button_delete}] %}
+          {% set actions = actions + [{'action': 'dismiss' + states('input_text.benachrichtigung_action_tag_separator') + notify_tag, 'title': action_button_delete}] %}
         {% endif %}
         {# 1. Timeout (Automatisches Löschen) #} {% if notify_timeout | int(0) > 0 %}
           {% set message.data = message.data | combine({'timeout': notify_timeout | int(0)}) %}
@@ -391,7 +391,7 @@ sequence:
                 title: "{{ notify_title }}"
                 message: "{{ notify_message }}"
                 data: "{{ device_message_data }}"
-  - action: script.telegram_benachrichtigung_loschen
+  - action: script.benachrichtigung_telegram_loschen
     metadata: {}
     data:
       notify_tag: "{{ notify_tag }}"
