@@ -4,7 +4,7 @@ blueprint:
   description: >
     # 🪟 Fenster-schließen-Erinnerung
 
-    **Version 1.2**
+    **Version 1.3**
 
 
     Meldet, wann ein geöffnetes Fenster wieder geschlossen werden soll, und löscht
@@ -44,7 +44,9 @@ blueprint:
     **Sprachansage (optional):** Ist ein Ansage-Skript gewählt, wird die Aufforderung
     zusätzlich gesprochen und im eingestellten Abstand wiederholt, bis alle Kontakte zu
     sind (oder die Höchstzahl erreicht ist). Schläft jemand oder ist niemand zu Hause,
-    pausieren die Ansagen und laufen danach weiter.
+    pausieren die Ansagen und laufen danach weiter. Der Knopf "Alexa ruhig" in der
+    Meldung stellt die Ansagen für diese Öffnung ab (z. B. Sensor zum Laden abgenommen);
+    beim nächsten Öffnen gelten sie wieder.
 
 
     **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.benachrichtigung_senden`,
@@ -349,6 +351,7 @@ variables:
   voice_repeat: !input voice_repeat
   voice_max: !input voice_max
   tag: "{{ 'fenster_schliessen_' ~ (room_name | slugify) }}"
+  mute_action: "{{ 'ALEXA_RUHE' ~ states('input_text.benachrichtigung_action_tag_separator') ~ tag }}"
 triggers:
   - trigger: state
     entity_id: !input window_sensors
@@ -472,11 +475,9 @@ actions:
         {{ states(indoor_temperature) | float(none) if indoor_temperature else none }}
       outdoor_now: >
         {{ states(outdoor_temperature) | float(none) if outdoor_temperature else none }}
-  - alias: Meldung senden
-    action: !input notify_script
-    data:
-      notify_title: "{{ 'Fenster schließen: ' ~ room_name }}"
-      notify_message: >
+  - alias: Text der Meldung
+    variables:
+      push_text: >
         {% set mins = ((now().timestamp() - opened_ts) / 60) | round(0) | int %}
         {% set out = ', draußen ' ~ (outdoor_now | round(0) | int) ~ ' °C' if outdoor_now is not none else '' %}
         {% if reason == 'air_good' %}
@@ -488,33 +489,63 @@ actions:
         {% else %}
           Das Fenster ist seit {{ mins }} Min offen{{ out }}. Bitte schließen.
         {% endif %}
-      notify_tag: "{{ tag }}"
-      notify_data: "{{ notify_data }}"
-      notify_persistent: "{{ notify_persistent }}"
-      notify_channel: "{{ notify_channel }}"
+  - alias: Meldung senden (nicht blockierend, damit der Knopf sofort wirkt)
+    action: script.turn_on
+    target:
+      entity_id: !input notify_script
+    data:
+      variables:
+        notify_title: "{{ 'Fenster schließen: ' ~ room_name }}"
+        notify_message: "{{ push_text }}"
+        notify_tag: "{{ tag }}"
+        notify_data: "{{ notify_data }}"
+        notify_persistent: "{{ notify_persistent }}"
+        notify_channel: "{{ notify_channel }}"
+        additional_message_actions: >
+          {{ [{'action': mute_action, 'title': 'Alexa ruhig'}] if voice_script else [] }}
 
-  - alias: Ansage sprechen und wiederholen, bis alles zu ist
+  - alias: Ansage sprechen und wiederholen, bis alles zu ist (oder "Alexa ruhig")
     if:
       - condition: template
         value_template: "{{ voice_script | length > 0 }}"
     then:
+      - variables:
+          muted: false
       - repeat:
           while:
             - condition: template
               value_template: >
-                {{ repeat.index <= (voice_max | int)
+                {{ repeat.index <= (voice_max | int) and not muted
                    and expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
           sequence:
-            - alias: Auf wach und zu Hause warten (oder alles zu)
-              wait_template: >
-                {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0
-                   or ((active_sensors | length == 0 or expand(active_sensors) | selectattr('state', 'eq', 'on') | list | count == active_sensors | length)
-                       and (presence_sensors | length == 0 or expand(presence_sensors) | selectattr('state', 'eq', 'on') | list | count > 0)) }}
-            - alias: Nur ansagen, wenn noch offen
+            - alias: Schläft jemand oder ist niemand da, erst warten
               if:
                 - condition: template
                   value_template: >
-                    {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+                    {{ not ((active_sensors | length == 0 or expand(active_sensors) | selectattr('state', 'eq', 'on') | list | count == active_sensors | length) and (presence_sensors | length == 0 or expand(presence_sensors) | selectattr('state', 'eq', 'on') | list | count > 0)) }}
+              then:
+                - wait_for_trigger:
+                    - trigger: template
+                      id: closed
+                      value_template: >
+                        {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0 }}
+                    - trigger: template
+                      id: ready
+                      value_template: >
+                        {{ (active_sensors | length == 0 or expand(active_sensors) | selectattr('state', 'eq', 'on') | list | count == active_sensors | length) and (presence_sensors | length == 0 or expand(presence_sensors) | selectattr('state', 'eq', 'on') | list | count > 0) }}
+                    - trigger: event
+                      id: mute
+                      event_type: mobile_app_notification_action
+                      event_data:
+                        action: "{{ mute_action }}"
+                - variables:
+                    muted: "{{ wait.trigger is not none and wait.trigger.id == 'mute' }}"
+            - alias: Ansagen, wenn noch offen und nicht stumm
+              if:
+                - condition: template
+                  value_template: >
+                    {{ not muted
+                       and expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
               then:
                 - action: script.turn_on
                   continue_on_error: true
@@ -533,12 +564,39 @@ actions:
                            ~ 'Bitte Fenster schließen: ' ~ (room_name | replace('/', ' und ')) ~ '. ')
                            ~ (grund ~ ' ' if grund and repeat.index == 1 else '')
                            ~ 'Offen seit ' ~ (mins ~ ' Minuten' if mins < 120 else (mins // 60) ~ ' Stunden') ~ '.') }}
-            - alias: Abstand bis zur nächsten Ansage (zu = Ende)
-              wait_template: >
-                {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0 }}
-              timeout:
-                minutes: "{{ voice_repeat | int }}"
-              continue_on_timeout: true
+                - alias: Abstand bis zur nächsten Ansage (zu oder Knopf = Ende)
+                  wait_for_trigger:
+                    - trigger: template
+                      id: closed
+                      value_template: >
+                        {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0 }}
+                    - trigger: event
+                      id: mute
+                      event_type: mobile_app_notification_action
+                      event_data:
+                        action: "{{ mute_action }}"
+                  timeout:
+                    minutes: "{{ voice_repeat | int }}"
+                  continue_on_timeout: true
+                - variables:
+                    muted: "{{ wait.trigger is not none and wait.trigger.id == 'mute' }}"
+      - alias: Stumm bestätigen (Meldung ohne Knopf erneut senden)
+        if:
+          - condition: template
+            value_template: >
+              {{ muted and expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+        then:
+          - action: script.turn_on
+            target:
+              entity_id: !input notify_script
+            data:
+              variables:
+                notify_title: "{{ 'Fenster schließen: ' ~ room_name }}"
+                notify_message: "{{ push_text ~ ' Alexa schweigt, bis es wieder zu ist.' }}"
+                notify_tag: "{{ tag }}"
+                notify_data: "{{ notify_data }}"
+                notify_persistent: "{{ notify_persistent }}"
+                notify_channel: "{{ notify_channel }}"
 
   - alias: Warten, bis alles zu ist (sofort weiter, falls schon zu)
     wait_template: >
