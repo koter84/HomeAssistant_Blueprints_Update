@@ -10,6 +10,11 @@ blueprint:
     Für Räume ohne Licht/Haupt-Steckdose (z.B. Lego- oder Arbeitszimmer) einfach
     light_aus_script und main_switch leer lassen und alle Switches über
     extra_switches führen.
+
+    Version 1.1: Skriptfeld keep_light_on (wird an das Licht-aus-Skript
+    durchgereicht, siehe licht_sanft_aus.yaml): Hauptlicht bleibt als Nachtlicht
+    an, alles andere geht aus. alexa_answer / keep_light_on werden zentral in
+    den Top-Level-Variablen geparst.
   domain: script
   input:
     nacht_an_script:
@@ -62,17 +67,17 @@ blueprint:
         entity:
           domain: light
 
-sequence:
-  # ── 1. Variablen ──────────────────────────────────────────────────────────
-  - alias: "Variablen setzen"
-    variables:
-      alexa_answer_parsed: "{{ alexa_answer if alexa_answer is defined else true }}"
-      _light_aus_script: !input light_aus_script
-      _main_switch: !input main_switch
-      _fan_light: !input fan_light
-      _extra_switches: !input extra_switches
+variables:
+  # Skriptfelder zentral parsen (fehlt das Feld, z.B. bei Aufruf ohne variables).
+  alexa_answer_parsed: "{{ alexa_answer if alexa_answer is defined else true }}"
+  keep_light_on_parsed: "{{ keep_light_on if keep_light_on is defined else false }}"
+  _light_aus_script: !input light_aus_script
+  _main_switch: !input main_switch
+  _fan_light: !input fan_light
+  _extra_switches: !input extra_switches
 
-  # ── 2. Nacht-an-Skript stoppen ────────────────────────────────────────────
+sequence:
+  # ── 1. Nacht-an-Skript stoppen ────────────────────────────────────────────
   # Muss als erstes passieren, damit dessen Warteschleife (wait_for_trigger auf
   # Fensteränderung) nicht nach dem Ausschalten erneut Geräte einschaltet.
   - alias: "Nacht-an-Skript stoppen"
@@ -80,11 +85,11 @@ sequence:
     target:
       entity_id: !input nacht_an_script
 
-  # ── 3. Alexa-Bestätigung mit kurzer Verzögerung ───────────────────────────
+  # ── 2. Alexa-Bestätigung mit kurzer Verzögerung ───────────────────────────
   - alias: "Alexa-Bestätigung mit kurzer Verzögerung"
     if:
       - condition: template
-        value_template: "{{ alexa_answer_parsed == true }}"
+        value_template: "{{ alexa_answer_parsed | bool(true) }}"
     then:
       - delay:
           seconds: 2
@@ -95,7 +100,8 @@ sequence:
           variables:
             message: "{{ this.attributes.friendly_name }}"
 
-  # ── 4. Licht sanft ausschalten (falls konfiguriert) ───────────────────────
+  # ── 3. Licht sanft ausschalten (falls konfiguriert) ───────────────────────
+  # keep_light_on wird durchgereicht: Hauptlicht bleibt dann als Nachtlicht an.
   - alias: "Licht sanft ausschalten (falls konfiguriert)"
     if:
       - condition: template
@@ -104,8 +110,11 @@ sequence:
       - action: script.turn_on
         target:
           entity_id: "{{ _light_aus_script }}"
+        data:
+          variables:
+            keep_light_on: "{{ keep_light_on_parsed | bool(false) }}"
 
-  # ── 5. Haupt-Steckdose ausschalten (falls konfiguriert) ───────────────────
+  # ── 4. Haupt-Steckdose ausschalten (falls konfiguriert) ───────────────────
   - alias: "Haupt-Steckdose ausschalten (falls konfiguriert)"
     if:
       - condition: template
@@ -124,7 +133,7 @@ sequence:
         target:
           entity_id: "{{ _extra_switches }}"
 
-  # ── 6. Ventilatorlicht ausschalten (optional, continue_on_error) ──────────
+  # ── 5. Ventilatorlicht ausschalten (optional, continue_on_error) ──────────
   - alias: "Ventilatorlicht ausschalten (falls konfiguriert)"
     if:
       - condition: template
@@ -144,5 +153,11 @@ fields:
     name: Antwort Alexa
     description: Soll Alexa eine Bestätigung ausgeben?
     default: true
+    selector:
+      boolean:
+  keep_light_on:
+    name: Licht an lassen
+    description: Hauptlicht als Nachtlicht gedimmt anlassen statt auszuschalten (wird an das Licht-aus-Skript durchgereicht).
+    default: false
     selector:
       boolean:

@@ -108,28 +108,27 @@ blueprint:
       selector:
         action: {}
 
-sequence:
-  # ── 1. Variablen ──────────────────────────────────────────────────────────
-  - alias: "Variablen setzen"
-    variables:
-      alexa_answer_parsed: "{{ alexa_answer if alexa_answer is defined else true }}"
-      _main_switch: !input main_switch
-      _switches_on: !input switches_on
-      _light_entity: !input light_entity
-      _light_brightness_pct: !input light_brightness_pct
-      _light_color_temp_kelvin: !input light_color_temp_kelvin
-      # WICHTIG: extra_actions selbst als Variable erfassen. Ein bloßes
-      # "{{ extra_actions }}" im Template weiter unten wäre NICHT dasselbe
-      # wie !input extra_actions – !input ist eine reine YAML-Ersetzung zur
-      # Parse-Zeit, keine Jinja-Laufzeitvariable. Ohne diese Zeile wäre
-      # "extra_actions" im Template schlicht undefined.
-      _extra_actions: !input extra_actions
+variables:
+  # Skriptfeld zentral parsen (fehlt das Feld, z.B. bei Aufruf ohne variables).
+  alexa_answer_parsed: "{{ alexa_answer if alexa_answer is defined else true }}"
+  _main_switch: !input main_switch
+  _switches_on: !input switches_on
+  _light_entity: !input light_entity
+  _light_brightness_pct: !input light_brightness_pct
+  _light_color_temp_kelvin: !input light_color_temp_kelvin
+  # WICHTIG: extra_actions selbst als Variable erfassen. Ein bloßes
+  # "{{ extra_actions }}" im Template weiter unten wäre NICHT dasselbe
+  # wie !input extra_actions – !input ist eine reine YAML-Ersetzung zur
+  # Parse-Zeit, keine Jinja-Laufzeitvariable. Ohne diese Zeile wäre
+  # "extra_actions" im Template schlicht undefined.
+  _extra_actions: !input extra_actions
 
+sequence:
   # ── 2. Alexa-Bestätigung ──────────────────────────────────────────────────
   - alias: "Sprachbestätigung via Alexa"
     if:
       - condition: template
-        value_template: "{{ alexa_answer_parsed == true }}"
+        value_template: "{{ alexa_answer_parsed | bool(true) }}"
     then:
       - action: script.turn_on
         data:
