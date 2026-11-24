@@ -4,7 +4,7 @@ blueprint:
   description: >
     # 🪟 Fenster-schließen-Erinnerung
 
-    **Version 1.1**
+    **Version 1.2**
 
 
     Meldet, wann ein geöffnetes Fenster wieder geschlossen werden soll, und löscht
@@ -39,6 +39,12 @@ blueprint:
     (z. B. `binary_sensor.wach`) und mindestens ein Anwesenheits-Sensor `on`.
     Sind sie noch nicht erfüllt, wird die Meldung nachgeholt, sobald sie es sind
     (z. B. beim Aufwachen), sofern das Fenster dann noch offen ist.
+
+
+    **Sprachansage (optional):** Ist ein Ansage-Skript gewählt, wird die Aufforderung
+    zusätzlich gesprochen und im eingestellten Abstand wiederholt, bis alle Kontakte zu
+    sind (oder die Höchstzahl erreicht ist). Schläft jemand oder ist niemand zu Hause,
+    pausieren die Ansagen und laufen danach weiter.
 
 
     **Voraussetzung:** Das gewählte Benachrichtigungs-Skript (`script.benachrichtigung_senden`,
@@ -276,6 +282,42 @@ blueprint:
                 - alert_once
                 - sticky
                 - high_priority
+    voice:
+      name: Sprachansage
+      icon: mdi:bullhorn
+      collapsed: true
+      input:
+        voice_script:
+          name: Ansage-Skript
+          description: >
+            Optional. Skript mit dem Feld `message`, das den Text spricht
+            (z. B. `script.alexa_ansage_uberall`). Leer = keine Ansage.
+          default: ""
+          selector:
+            entity:
+              domain:
+                - script
+        voice_repeat:
+          name: Ansage wiederholen alle
+          description: Abstand der Wiederholungen, solange das Fenster offen ist.
+          default: 10
+          selector:
+            number:
+              min: 1
+              max: 120
+              step: 1
+              unit_of_measurement: min
+              mode: box
+        voice_max:
+          name: Höchstzahl Ansagen je Öffnung
+          description: Schutz vor Dauer-Ansagen, z. B. bei einem hängenden Kontakt.
+          default: 12
+          selector:
+            number:
+              min: 1
+              max: 100
+              step: 1
+              mode: box
 
 mode: single
 max_exceeded: silent
@@ -303,6 +345,9 @@ variables:
   humidity_reset: !input humidity_reset
   notify_persistent: !input notify_persistent
   notify_data: !input notify_data
+  voice_script: !input voice_script
+  voice_repeat: !input voice_repeat
+  voice_max: !input voice_max
   tag: "{{ 'fenster_schliessen_' ~ (room_name | slugify) }}"
 triggers:
   - trigger: state
@@ -447,6 +492,53 @@ actions:
       notify_data: "{{ notify_data }}"
       notify_persistent: "{{ notify_persistent }}"
       notify_channel: "{{ notify_channel }}"
+
+  - alias: Ansage sprechen und wiederholen, bis alles zu ist
+    if:
+      - condition: template
+        value_template: "{{ voice_script | length > 0 }}"
+    then:
+      - repeat:
+          while:
+            - condition: template
+              value_template: >
+                {{ repeat.index <= (voice_max | int)
+                   and expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+          sequence:
+            - alias: Auf wach und zu Hause warten (oder alles zu)
+              wait_template: >
+                {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0
+                   or ((active_sensors | length == 0 or expand(active_sensors) | selectattr('state', 'eq', 'on') | list | count == active_sensors | length)
+                       and (presence_sensors | length == 0 or expand(presence_sensors) | selectattr('state', 'eq', 'on') | list | count > 0)) }}
+            - alias: Nur ansagen, wenn noch offen
+              if:
+                - condition: template
+                  value_template: >
+                    {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count > 0 }}
+              then:
+                - action: script.turn_on
+                  continue_on_error: true
+                  target:
+                    entity_id: "{{ voice_script }}"
+                  data:
+                    variables:
+                      message: >-
+                        {% set mins = ((now().timestamp() - opened_ts) / 60) | round(0) | int %}
+                        {% set grund = {
+                          'air_good': 'Die Luft ist wieder gut.',
+                          'too_cold': 'Der Raum kühlt aus.',
+                          'too_warm': 'Draußen ist es wärmer als drinnen.'
+                        }.get(reason, '') %}
+                        {{ ((('Erinnerung: ' if repeat.index > 1 else '')
+                           ~ 'Bitte Fenster schließen: ' ~ (room_name | replace('/', ' und ')) ~ '. ')
+                           ~ (grund ~ ' ' if grund and repeat.index == 1 else '')
+                           ~ 'Offen seit ' ~ (mins ~ ' Minuten' if mins < 120 else (mins // 60) ~ ' Stunden') ~ '.') }}
+            - alias: Abstand bis zur nächsten Ansage (zu = Ende)
+              wait_template: >
+                {{ expand(window_sensors) | selectattr('state', 'eq', 'on') | list | count == 0 }}
+              timeout:
+                minutes: "{{ voice_repeat | int }}"
+              continue_on_timeout: true
 
   - alias: Warten, bis alles zu ist (sofort weiter, falls schon zu)
     wait_template: >
