@@ -114,6 +114,9 @@ condition:
     entity_id: binary_sensor.zu_hause
     state: "on"
   - condition: state
+    entity_id: binary_sensor.heizung_zuhause_sommermodus
+    state: "on"
+  - condition: state
     entity_id: input_boolean.urlaub
     state: "off"
 action:
